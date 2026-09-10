@@ -1,4 +1,4 @@
-# Ghost Agency
+# Ghost Boosters
 
 A marketing agency with zero employees. Paste a product brief; twelve AI agents research,
 strategise, write, review, design, publish, film, buy media, talk to the audience, measure and

@@ -232,7 +232,7 @@ def _render_flat(spec: dict, product_name: str) -> str:
     bg = _hex(pal.get("bg", ""), "#141414")
     fg = _hex(pal.get("fg", ""), "#fafafa")
     ac = _hex(pal.get("accent", ""), "#c6ff4a")
-    headline = str(spec.get("headline") or "").strip() or product_name or "Ghost Agency"
+    headline = str(spec.get("headline") or "").strip() or product_name or "Ghost Boosters"
     subline = str(spec.get("subline") or "").strip()
     parts = [f'<rect width="1080" height="1080" fill="{bg}"/>',
              f'<rect x="0" y="0" width="1080" height="14" fill="{ac}"/>',
@@ -256,7 +256,7 @@ def render_poster_svg(spec: dict, product_name: str = "", photo: dict | None = N
     if layout not in ("photo", "split", "frame"):
         layout = "photo"
     treatment = spec.get("treatment") if spec.get("treatment") in ("dark", "light") else "dark"
-    headline = str(spec.get("headline") or "").strip() or product_name or "Ghost Agency"
+    headline = str(spec.get("headline") or "").strip() or product_name or "Ghost Boosters"
     subline = str(spec.get("subline") or "").strip()
     alt = html.escape(str(spec.get("alt_text") or headline))
     product = product_name or ""
@@ -461,14 +461,17 @@ def simulate_comments(brief: dict, day: int, published: list[dict], per_post: in
 
 # ------------------------------------------------------------------ motion (video)
 
-def render_motion_html(spec: dict, product_name: str = "", loop: bool = True) -> str:
-    """Storyboard spec -> self-contained animated HTML (720x720). Real photos with a slow push-in
-    when a scene has one; pure CSS, no JS, never fails."""
+def render_motion_html(spec: dict, product_name: str = "", loop: bool = True, clip_url=None) -> str:
+    """Storyboard spec -> animated HTML (720x720). A scene with a real clip plays it as the
+    background; a scene with a photo gets a slow push-in; otherwise a plain colour. `clip_url`
+    maps a clip path to the URL the page should load it from (file:// for recording, /api/media
+    when served). Never fails."""
+    clip_url = clip_url or (lambda path: "file://" + os.path.abspath(path))
     scenes = list(spec.get("scenes") or [])
     if not scenes:
-        scenes = [{"text": product_name or "Ghost Agency", "subtext": "", "bg": "#0b0d12", "fg": "#ffffff",
+        scenes = [{"text": product_name or "Ghost Boosters", "subtext": "", "bg": "#0b0d12", "fg": "#ffffff",
                    "accent": "#c6ff4a", "seconds": 3, "style": "punch"}]
-    scenes = scenes + [{"text": product_name or spec.get("title") or "Ghost Agency", "subtext": "Produced by Ghost Agency",
+    scenes = scenes + [{"text": product_name or spec.get("title") or "Ghost Boosters", "subtext": "Produced by Ghost Boosters",
                         "bg": "#07090d", "fg": "#ffffff", "accent": "#c6ff4a", "seconds": 2.5, "style": "calm", "photo": None}]
     total = sum(float(s.get("seconds") or 3) for s in scenes)
     css, divs, t = [], [], 0.0
@@ -483,9 +486,11 @@ def render_motion_html(spec: dict, product_name: str = "", loop: bool = True) ->
         fa = min(b, a + fade / total * 100)
         fb = max(fa, b - fade / total * 100)
         photo = s.get("photo")
-        uri = photo_data_uri(photo) if photo and Path(str(photo)).exists() else None
+        clip = s.get("clip")
+        clip = clip if clip and Path(str(clip)).exists() else None
+        uri = photo_data_uri(photo) if (photo and not clip and Path(str(photo)).exists()) else None
         treatment = s.get("treatment") if s.get("treatment") in ("dark", "light") else "dark"
-        txt = "#141414" if (uri and treatment == "light") else (fg if not uri else "#ffffff")
+        txt = "#141414" if ((uri or clip) and treatment == "light") else (fg if not (uri or clip) else "#ffffff")
         grad = "255,255,255" if treatment == "light" else "0,0,0"
         css.append(f".s{i}{{animation:sh{i} {total}s {it} both;background:{bg};color:{txt}}}.s{i} .ac{{background:{ac}}}"
                    f"@keyframes sh{i}{{0%,{a:.3f}%{{opacity:0;visibility:hidden}}{fa:.3f}%{{opacity:1;visibility:visible}}"
@@ -494,18 +499,22 @@ def render_motion_html(spec: dict, product_name: str = "", loop: bool = True) ->
                    f"@keyframes tx{i}{{0%,{a:.3f}%{{transform:translateY({'22px' if style == 'punch' else '8px'})}}{fa:.3f}%,100%{{transform:none}}}}")
         if uri:
             css.append(f".s{i} .bg{{background-image:url({uri});animation:kb{i} {total}s {it} both}}"
-                       f"@keyframes kb{i}{{0%,{a:.3f}%{{transform:scale(1)}}{b:.3f}%,100%{{transform:scale(1.1)}}}}"
-                       f".s{i} .ov{{background:linear-gradient(180deg,rgba({grad},0) 30%,rgba({grad},.85) 100%)}}")
+                       f"@keyframes kb{i}{{0%,{a:.3f}%{{transform:scale(1)}}{b:.3f}%,100%{{transform:scale(1.1)}}}}")
+        if uri or clip:
+            css.append(f".s{i} .ov{{background:linear-gradient(180deg,rgba({grad},0) 30%,rgba({grad},.85) 100%)}}")
         text = html.escape(str(s.get("text") or ""))
         sub = html.escape(str(s.get("subtext") or ""))
-        divs.append(f'<div class="sc s{i}">{"<div class=bg></div><div class=ov></div>" if uri else ""}<div class="bar ac"></div>'
+        bgdiv = (f'<video class="bg" src="{html.escape(clip_url(clip))}" autoplay muted loop playsinline></video><div class="ov"></div>' if clip
+                 else "<div class=bg></div><div class=ov></div>" if uri else "")
+        divs.append(f'<div class="sc s{i}">{bgdiv}<div class="bar ac"></div>'
                     f'<div class="txt"><div class="t">{text}</div><div class="u">{sub}</div></div>'
                     f'<div class="pn">{html.escape(product_name)}</div></div>')
-    return f"""<!doctype html><html><head><meta charset="utf-8"><title>{html.escape(spec.get('title') or 'Ghost Agency')}</title>
+    return f"""<!doctype html><html><head><meta charset="utf-8"><title>{html.escape(spec.get('title') or 'Ghost Boosters')}</title>
 <style>
 html,body{{margin:0;background:#000;width:720px;height:720px;overflow:hidden;font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif}}
 .sc{{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:56px;box-sizing:border-box;overflow:hidden}}
 .bg{{position:absolute;inset:0;background-size:cover;background-position:center;transform-origin:center}}
+video.bg{{width:100%;height:100%;object-fit:cover}}
 .ov{{position:absolute;inset:0}}
 .bar{{position:absolute;left:56px;top:56px;width:64px;height:8px}}
 .txt{{position:relative}}
@@ -549,8 +558,9 @@ def record_motion_video(html_path: str, seconds: float, out_path: str) -> str:
 PHOTO_DIR = Path(__file__).parent / "media" / "photos"
 
 
-def _photo_cache_key(query: str) -> str:
-    return hashlib.sha1(query.strip().lower().encode()).hexdigest()[:16]
+def _photo_cache_key(query: str, kind: str = "photo") -> str:
+    prov = "pexels" if os.environ.get("PEXELS_API_KEY", "").strip() else "wiki"
+    return hashlib.sha1(f"{kind}:{prov}:{query.strip().lower()}".encode()).hexdigest()[:16]
 
 
 def _pexels_search(query: str, key: str) -> dict | None:
@@ -562,11 +572,8 @@ def _pexels_search(query: str, key: str) -> dict | None:
         r = httpx.get("https://api.pexels.com/v1/search", params={"query": query, "per_page": 6}, headers={"Authorization": key}, timeout=15)
         r.raise_for_status()
         photos = r.json().get("photos") or []
-    if not photos:
-        return None
-    p = photos[0]
-    return {"url": p["src"].get("large2x") or p["src"]["large"], "credit": f"{p.get('photographer', 'Pexels')} / Pexels",
-            "source_url": p.get("url", ""), "provider": "pexels"}
+    return [{"url": p["src"].get("large2x") or p["src"]["large"], "credit": f"{p.get('photographer', 'Pexels')} / Pexels",
+             "source_url": p.get("url", ""), "provider": "pexels"} for p in photos] or None
 
 
 def _wikimedia_search(query: str) -> dict | None:
@@ -604,53 +611,74 @@ def _wikimedia_pick(query: str, r) -> dict | None:
     pages.sort(key=score, reverse=True)
     if words and score(pages[0])[0] == 0 and len(words) > 1:
         return None  # nothing mentions the subject; let the caller relax the query
-    p = pages[0]["imageinfo"][0]
-    meta = p.get("extmetadata") or {}
-    artist = re.sub(r"<[^>]+>", "", (meta.get("Artist") or {}).get("value", "")).strip()[:40]
-    return {"url": p.get("thumburl") or p["url"], "credit": f"{artist or 'Wikimedia Commons'} / Wikimedia",
-            "source_url": p.get("descriptionurl", ""), "provider": "wikimedia"}
+    out = []
+    for pg in pages[:5]:
+        p = pg["imageinfo"][0]
+        meta = p.get("extmetadata") or {}
+        artist = re.sub(r"<[^>]+>", "", (meta.get("Artist") or {}).get("value", "")).strip()[:40]
+        out.append({"url": p.get("thumburl") or p["url"], "credit": f"{artist or 'Wikimedia Commons'} / Wikimedia",
+                    "source_url": p.get("descriptionurl", ""), "provider": "wikimedia"})
+    return out
 
 
-def find_photo(query: str) -> dict | None:
-    """Real photo for a query -> {path, credit, source_url, provider}; cached on disk. None if nothing works."""
+def _download(url: str, dest_dir: Path) -> Path | None:
+    name = hashlib.sha1(url.encode()).hexdigest()[:16]
+    for ext in (".jpg", ".png", ".mp4"):
+        if (dest_dir / f"{name}{ext}").exists():
+            return dest_dir / f"{name}{ext}"
+    r = httpx.get(url, timeout=90, follow_redirects=True, headers={"User-Agent": "GhostAgency/1.0 (hackathon demo)"})
+    r.raise_for_status()
+    ct = r.headers.get("content-type", "")
+    if not (ct.startswith("image/") or ct.startswith("video/")):
+        return None
+    ext = ".png" if "png" in ct else ".mp4" if ct.startswith("video/") else ".jpg"
+    path = dest_dir / f"{name}{ext}"
+    path.write_bytes(r.content)
+    return path
+
+
+def find_photo(query: str, exclude: set[str] | None = None) -> dict | None:
+    """Real photo for a query -> {path, credit, source_url, provider, url}; candidates cached on
+    disk, files cached by URL. `exclude` = photo URLs already used elsewhere in the campaign."""
     query = " ".join((query or "").split())[:80]
     if not query or env_flag("NO_PHOTOS"):
         return None
+    exclude = exclude or set()
     PHOTO_DIR.mkdir(parents=True, exist_ok=True)
     key = _photo_cache_key(query)
-    meta_path = PHOTO_DIR / f"{key}.json"
-    if meta_path.exists():
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        if Path(meta["path"]).exists():
-            return meta
-    providers = []
-    pexels_key = os.environ.get("PEXELS_API_KEY", "").strip()
-    if pexels_key:
-        providers.append(lambda: _pexels_search(query, pexels_key))
-    words = query.split()
-    for n in range(len(words), max(0, min(2, len(words)) - 1), -1):  # keyless fallback: relax to at least 2 words
-        providers.append(lambda q=" ".join(words[:n]): _wikimedia_search(q))
-    if len(words) > 1:
-        providers.append(lambda q=words[0]: _wikimedia_search(q))  # last resort: the subject alone
-    for prov in providers:
+    cand_path = PHOTO_DIR / f"{key}.json"
+    candidates: list[dict] | None = None
+    if cand_path.exists():
+        candidates = json.loads(cand_path.read_text(encoding="utf-8"))
+    if candidates is None:
+        providers = []
+        pexels_key = os.environ.get("PEXELS_API_KEY", "").strip()
+        if pexels_key:
+            providers.append(lambda: _pexels_search(query, pexels_key))
+        words = query.split()
+        for n in range(len(words), max(0, min(2, len(words)) - 1), -1):  # keyless fallback: relax to at least 2 words
+            providers.append(lambda q=" ".join(words[:n]): _wikimedia_search(q))
+        if len(words) > 1:
+            providers.append(lambda q=words[0]: _wikimedia_search(q))  # last resort: the subject alone
+        for prov in providers:
+            try:
+                hits = prov()
+                if hits:
+                    candidates = hits
+                    break
+            except Exception as e:  # next provider
+                log.warning("photo provider failed for %r: %s", query, e)
+        if candidates is None:
+            return None
+        cand_path.write_text(json.dumps(candidates), encoding="utf-8")
+    ordered = [c for c in candidates if c["url"] not in exclude] or candidates
+    for c in ordered:
         try:
-            hit = prov()
-            if not hit:
-                continue
-            img = httpx.get(hit["url"], timeout=25, follow_redirects=True,
-                            headers={"User-Agent": "GhostAgency/1.0 (hackathon demo)"})
-            img.raise_for_status()
-            if not img.headers.get("content-type", "").startswith("image/"):
-                continue
-            ext = ".png" if "png" in img.headers.get("content-type", "") else ".jpg"
-            path = PHOTO_DIR / f"{key}{ext}"
-            path.write_bytes(img.content)
-            meta = {"path": str(path), "credit": hit["credit"], "source_url": hit["source_url"],
-                    "provider": hit["provider"], "query": query}
-            meta_path.write_text(json.dumps(meta), encoding="utf-8")
-            return meta
-        except Exception as e:  # next provider
-            log.warning("photo provider failed for %r: %s", query, e)
+            path = _download(c["url"], PHOTO_DIR)
+            if path:
+                return {**c, "path": str(path), "query": query}
+        except Exception as e:
+            log.warning("photo download failed: %s", e)
     return None
 
 
@@ -659,3 +687,51 @@ def photo_data_uri(path: str) -> str:
     p = Path(path)
     mime = "image/png" if p.suffix == ".png" else "image/jpeg"
     return f"data:{mime};base64," + base64.b64encode(p.read_bytes()).decode("ascii")
+
+
+# ------------------------------------------------------------------ real footage (Pexels Videos)
+
+CLIP_DIR = Path(__file__).parent / "media" / "clips"
+
+
+def find_video(query: str, max_seconds: int = 30, exclude: set[str] | None = None) -> dict | None:
+    """Real licensed clip for a query -> {path, credit, source_url, duration, provider}; cached. Pexels only."""
+    query = " ".join((query or "").split())[:80]
+    key = os.environ.get("PEXELS_API_KEY", "").strip()
+    if not query or not key or env_flag("NO_PHOTOS"):
+        return None
+    CLIP_DIR.mkdir(parents=True, exist_ok=True)
+    ck = _photo_cache_key(query, "clip")
+    meta_path = CLIP_DIR / f"{ck}.json"
+    if meta_path.exists() and not exclude:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        if Path(meta["path"]).exists():
+            return meta
+    try:
+        vids = []
+        for orientation in ("square", "landscape"):
+            r = httpx.get("https://api.pexels.com/videos/search",
+                          params={"query": query, "per_page": 8, "orientation": orientation, "size": "medium"},
+                          headers={"Authorization": key}, timeout=20)
+            r.raise_for_status()
+            vids = [v for v in r.json().get("videos", []) if 3 <= (v.get("duration") or 0) <= max_seconds]
+            if vids:
+                break
+        if not vids:
+            return None
+        exclude = exclude or set()
+        v = next((x for x in vids if x.get("url") not in exclude), vids[0])
+        files = [f for f in v["video_files"] if f.get("file_type") == "video/mp4" and (f.get("width") or 0) >= 640]
+        files.sort(key=lambda f: abs((f.get("width") or 0) - 960))  # ~960 px: sharp enough, small enough
+        f = files[0] if files else v["video_files"][0]
+        path = _download(f["link"], CLIP_DIR)
+        if not path:
+            return None
+        meta = {"path": str(path), "credit": f"{v.get('user', {}).get('name', 'Pexels')} / Pexels", "source_url": v.get("url", ""),
+                "duration": v.get("duration"), "provider": "pexels", "query": query,
+                "width": f.get("width"), "height": f.get("height")}
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
+        return meta
+    except Exception as e:
+        log.warning("footage lookup failed for %r: %s", query, e)
+        return None

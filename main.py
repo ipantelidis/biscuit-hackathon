@@ -1,4 +1,4 @@
-"""Ghost Agency: FastAPI app, routes, startup (init db, seed agents, start orchestrator)."""
+"""Ghost Boosters: FastAPI app, routes, startup (init db, seed agents, start orchestrator)."""
 from __future__ import annotations
 
 import json
@@ -31,7 +31,7 @@ templates = Jinja2Templates(directory=str(ROOT / "templates"))
 
 def init_db() -> None:
     db.connect()
-    db.seed_company("Ghost Agency", float(os.environ.get("BUDGET_EUR", "5.0")))
+    db.seed_company("Ghost Boosters", float(os.environ.get("BUDGET_EUR", "5.0")))
     db.seed_agents(seed_rows())
 
 
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     runtime.stop_orchestrator()
 
 
-app = FastAPI(title="Ghost Agency", lifespan=lifespan)
+app = FastAPI(title="Ghost Boosters", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
 
 
@@ -71,7 +71,7 @@ def campaign_page(brief_id: str, request: Request):
     for p in posts:
         asset = db.get("assets", p["asset_id"]) if p.get("asset_id") else None
         p["photo_credit"] = asset.get("photo_credit") if asset else None
-        p["photo_url"] = asset.get("photo_url") if asset else None
+        p["photo_url"] = (asset.get("spec") or {}).get("_source_url") if asset and (asset.get("spec") or {}).get("_source_url") else (asset.get("photo_url") if asset else None)
         ms = db.query("metrics", "content_id = ?", [p["id"]])
         if ms:
             imp = sum(m["impressions"] for m in ms)
@@ -81,9 +81,15 @@ def campaign_page(brief_id: str, request: Request):
                             "ctr": round(100 * clk / imp, 1) if imp else 0.0, "days": len(ms)}
         else:
             p["metrics"] = None
+    footage = []
+    if video:
+        for sc in (video.get("spec") or {}).get("scenes", []):
+            cr = sc.get("clip_credit") or sc.get("photo_credit")
+            if cr and cr not in footage:
+                footage.append(cr)
     return templates.TemplateResponse(request, "campaign.html",
                                       {"brief": brief, "posts": posts, "day": brief.get("day") or 0,
-                                       "video": video, "comments": comments})
+                                       "video": video, "comments": comments, "footage": footage})
 
 
 @app.get("/motion/{brief_id}", response_class=HTMLResponse, include_in_schema=False)
@@ -92,7 +98,18 @@ def motion_page(brief_id: str, loop: int = 1):
     if not videos:
         raise HTTPException(404, "no storyboard yet")
     brief = db.get("briefs", brief_id)
-    return HTMLResponse(tools.render_motion_html(videos[0]["spec"], brief["product_name"] if brief else "", loop=bool(loop)))
+    return HTMLResponse(tools.render_motion_html(videos[0]["spec"], brief["product_name"] if brief else "", loop=bool(loop),
+                                                 clip_url=lambda path: f"/api/media/clips/{Path(path).name}"))
+
+
+@app.get("/api/media/clips/{name}", include_in_schema=False)
+def clip_file(name: str):
+    if "/" in name or ".." in name or not name.endswith(".mp4"):
+        raise HTTPException(404, "no such clip")
+    path = tools.CLIP_DIR / name
+    if not path.exists():
+        raise HTTPException(404, "no such clip")
+    return FileResponse(path, media_type="video/mp4", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.get("/api/videos/{video_id}.webm", include_in_schema=False)

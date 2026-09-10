@@ -28,6 +28,7 @@
   .film { position:relative; aspect-ratio:1/1; border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,.15); box-shadow:0 30px 80px rgba(0,0,0,.6); background:#000; }
   .film video, .film iframe { width:100%; height:100%; display:block; border:0; object-fit:cover; }
   .film .cap { position:absolute; left:12px; bottom:12px; display:flex; gap:6px; }
+  .footage { grid-column:2; font-family:var(--mono); font-size:11px; color:rgba(255,255,255,.45); margin-top:-28px; }
   @media (max-width:900px) { .hero .wrap { grid-template-columns:1fr; } }
   .voices { padding:8px 24px 48px; }
   .voices .grid { grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
@@ -99,6 +100,7 @@
     {% else %}<iframe src="/motion/{{ brief.id }}?loop=1" title="{{ video.title }}"></iframe>{% endif %}
     <div class="cap"><span class="chip acc">{{ video.title }}</span><span class="chip">{{ video.duration_s | round | int }}s</span></div>
   </div>
+  {% if footage %}<div class="footage">Footage: {{ footage | join(' · ') }}</div>{% endif %}
   {% endif %}
 </div></div>
 
@@ -141,7 +143,7 @@
 {% endif %}
 
 <footer><div class="wrap">
-  <div class="q">Produced by Ghost Agency. <em>No humans</em> were employed in the making of this campaign.</div>
+  <div class="q">Produced by Ghost Boosters. <em>No humans</em> were employed in the making of this campaign.</div>
   <div class="s">Twelve AI agents researched, planned, wrote, reviewed, designed, filmed, published and optimised this campaign. A human board approved every post.</div>
 </div></footer>
 </body>

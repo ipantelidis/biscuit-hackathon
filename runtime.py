@@ -626,6 +626,8 @@ def hook_designer(task: dict, out: dict, brief: dict) -> None:
     content_ids = task["input"].get("content_ids", [])
     specs = {a["content_index"]: a for a in out["assets"]}
     redesign = bool(task["input"].get("redesign"))
+    used = {a["photo_url"] for a in db.query("assets", "photo_url IS NOT NULL")
+            if (db.get("content", a["content_id"]) or {}).get("brief_id") == brief["id"]}
     for i, cid in enumerate(content_ids):
         c = db.get("content", cid)
         if not c or c["status"] == "blocked":
@@ -637,13 +639,15 @@ def hook_designer(task: dict, out: dict, brief: dict) -> None:
         spec = specs.get(i) or {"content_index": i, "headline": c["headline"], "subline": c["cta"],
                                 "palette": {}, "layout": ("photo", "split", "frame")[i % 3], "treatment": "dark",
                                 "photo_query": f"{brief['product_name']} {c['headline']}", "alt_text": c["headline"]}
-        photo = tools.find_photo(spec.get("photo_query") or f"{brief['product_name']} {c['headline']}")
+        photo = tools.find_photo(spec.get("photo_query") or f"{brief['product_name']} {c['headline']}", exclude=used)
+        if photo:
+            used.add(photo.get("url") or photo.get("source_url"))
         svg = tools.render_poster_svg(spec, brief["product_name"], photo)
         aid = db.insert("assets", {"content_id": cid, "kind": "svg_poster", "spec": spec, "svg": svg,
                                    "alt_text": spec.get("alt_text") or c["headline"],
                                    "photo_path": photo["path"] if photo else None,
                                    "photo_credit": photo["credit"] if photo else None,
-                                   "photo_url": photo["source_url"] if photo else None})
+                                   "photo_url": (photo.get("url") or photo.get("source_url")) if photo else None})
         if redesign:
             db.update("content", cid, {"asset_id": aid, "status": "pending_approval",
                                        "redesigns": (c.get("redesigns") or 0) + 1})
@@ -695,10 +699,18 @@ def _render_video_async(video_id: str, brief: dict, spec: dict) -> None:
 
 
 def hook_motion(task: dict, out: dict, brief: dict) -> None:
-    scenes = []
+    scenes, used = [], set()
     for sc in out["scenes"]:
         sc = dict(sc)
-        photo = tools.find_photo(sc.get("photo_query")) if sc.get("photo_query") else None
+        q = sc.get("photo_query")
+        clip = tools.find_video(q, exclude=used) if q else None
+        photo = tools.find_photo(q, exclude=used) if (q and not clip) else None
+        for m in (clip, photo):
+            if m:
+                used.add(m.get("source_url") or m.get("url"))
+                used.add(m.get("url") or "")
+        sc["clip"] = clip["path"] if clip else None
+        sc["clip_credit"] = clip["credit"] if clip else None
         sc["photo"] = photo["path"] if photo else None
         sc["photo_credit"] = photo["credit"] if photo else None
         scenes.append(sc)

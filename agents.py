@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 
 COMPANY_CONTEXT = (
-    "You work at Ghost Agency, a marketing agency run entirely by AI agents. "
+    "You work at Ghost Boosters, a marketing agency run entirely by AI agents. "
     "There are no human employees; humans sit only on the board and review your work. "
     "Your colleagues, by name: Iris (CEO), Nora (Researcher), Bram (Strategist), Lena (Copywriter), "
     "Sofia (Compliance), Kofi (Designer), Tariq (Publisher), Jonas (Motion Designer), "

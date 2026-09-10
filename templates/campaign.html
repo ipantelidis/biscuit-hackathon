@@ -4,66 +4,110 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ brief.product_name }} · {{ brief.campaign_name or 'Campaign' }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root { --paper:#f6f4ef; --ink:#161616; --mute:#6b6862; --line:#d9d5cc; --signal:#e4572e; }
+  :root { --bg:#07090d; --paper:#f4f2ec; --ink:#121418; --ink-2:#5c6470; --line:#e2ded4; --acc:#c6ff4a; --alert:#ff5c6c;
+          --ui:"Space Grotesk",Inter,"Helvetica Neue",Arial,system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,monospace; }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--paper); color:var(--ink); font-family:"Helvetica Neue",Helvetica,Arial,Inter,system-ui,sans-serif; line-height:1.45; }
-  main { max-width:1100px; margin:0 auto; padding:48px 24px 80px; }
-  header { border-bottom:1px solid var(--ink); padding-bottom:28px; margin-bottom:36px; }
-  .eyebrow { font-size:13px; color:var(--mute); letter-spacing:.02em; margin:0 0 10px; }
-  h1 { font-size:clamp(32px,5vw,56px); line-height:1.05; margin:0 0 16px; letter-spacing:-.02em; }
-  .intro { font-size:19px; max-width:640px; margin:0; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:28px; }
-  article { border:1px solid var(--line); background:#fff; display:flex; flex-direction:column; }
-  article img { width:100%; aspect-ratio:1/1; display:block; border-bottom:1px solid var(--line); }
-  .meta { display:flex; justify-content:space-between; align-items:center; padding:12px 16px 0; font-size:12px; color:var(--mute); }
-  .badge { border:1px solid var(--ink); border-radius:999px; padding:2px 9px; color:var(--ink); }
-  .revised { color:var(--signal); border-color:var(--signal); }
-  .post { padding:10px 16px 16px; }
-  .post h2 { font-size:18px; margin:6px 0 8px; letter-spacing:-.01em; }
-  .post p { margin:0 0 10px; white-space:pre-line; font-size:15px; }
-  .cta { font-weight:600; }
-  .tags { color:var(--mute); font-size:13px; }
-  .metrics { margin-top:auto; border-top:1px dashed var(--line); padding:10px 16px; font-size:13px; color:var(--mute); }
-  .metrics b { color:var(--ink); font-weight:600; }
-  footer { margin-top:64px; border-top:1px solid var(--ink); padding-top:20px; font-size:14px; color:var(--mute); }
-  .empty { border:1px dashed var(--line); padding:40px; text-align:center; color:var(--mute); }
+  body { margin:0; font:15px/1.5 var(--ui); color:var(--ink); background:var(--paper); }
+  .hero { background:var(--bg); color:#fff; padding:64px 24px 72px; position:relative; overflow:hidden; }
+  .hero::before { content:""; position:absolute; inset:0; background:radial-gradient(900px 400px at 20% 0%, rgba(198,255,74,.18), transparent 60%), linear-gradient(rgba(255,255,255,.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.03) 1px, transparent 1px); background-size:auto, 40px 40px, 40px 40px; }
+  .wrap { max-width:1140px; margin:0 auto; position:relative; }
+  .eyebrow { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:22px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:4px 10px; border-radius:999px; border:1px solid rgba(255,255,255,.2); color:rgba(255,255,255,.75); white-space:nowrap; }
+  .chip.acc { color:var(--acc); border-color:rgba(198,255,74,.5); background:rgba(198,255,74,.12); }
+  .chip.live::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--acc); box-shadow:0 0 10px var(--acc); animation:blink 1.6s infinite; }
+  @keyframes blink { 50% { opacity:.3; } }
+  h1 { font-size:clamp(40px,6.5vw,84px); line-height:.98; letter-spacing:-.035em; margin:0 0 22px; max-width:900px; font-weight:700; }
+  .intro { font-size:clamp(17px,2vw,21px); color:rgba(255,255,255,.72); max-width:640px; margin:0 0 30px; }
+  .cta { display:inline-block; background:var(--acc); color:#0b1200; font-weight:700; padding:14px 22px; border-radius:12px; text-decoration:none; box-shadow:0 0 40px rgba(198,255,74,.35); }
+  .stats { display:flex; gap:28px; margin-top:44px; flex-wrap:wrap; }
+  .stat .v { font-family:var(--mono); font-size:26px; font-weight:500; }
+  .stat .l { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.5); }
+
+  section.posts { padding:56px 24px 40px; }
+  .sec-title { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:24px; gap:12px; flex-wrap:wrap; }
+  .sec-title h2 { font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-2); margin:0; font-weight:600; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:28px; }
+  .social { background:#fff; border:1px solid var(--line); border-radius:18px; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,.08); display:flex; flex-direction:column; transition:transform .2s; }
+  .social:hover { transform:translateY(-4px); }
+  .social .top { display:flex; align-items:center; gap:10px; padding:14px 16px; }
+  .social .pfp { width:38px; height:38px; border-radius:50%; background:var(--ink); color:var(--acc); display:grid; place-items:center; font-weight:700; }
+  .social .top .n { font-weight:600; line-height:1.15; }
+  .social .top .h { font-size:12px; color:var(--ink-2); font-family:var(--mono); }
+  .social .top .ch { margin-left:auto; }
+  .ch { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; padding:4px 9px; border-radius:8px; }
+  .ch.instagram { background:linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7); color:#fff; }
+  .ch.x { background:#000; color:#fff; }
+  .ch.linkedin { background:#0a66c2; color:#fff; }
+  .social .txt { padding:0 16px 12px; white-space:pre-line; }
+  .social .txt b { display:block; font-size:17px; margin-bottom:6px; letter-spacing:-.01em; }
+  .social img { width:100%; aspect-ratio:1/1; display:block; }
+  .social .tags { padding:10px 16px 0; color:#0a66c2; font-size:13px; }
+  .social .foot { margin-top:auto; padding:12px 16px 14px; display:flex; align-items:center; gap:14px; font-family:var(--mono); font-size:12px; color:var(--ink-2); border-top:1px solid var(--line); }
+  .social .foot b { color:var(--ink); font-weight:500; }
+  .social .foot .when { margin-left:auto; }
+  .revised { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#b3164a; background:#ffe3ec; padding:4px 9px; border-radius:8px; }
+  .ctabtn { display:inline-block; margin:6px 16px 4px; font-weight:700; color:var(--ink); border:1.5px solid var(--ink); padding:7px 12px; border-radius:10px; font-size:14px; }
+  .empty { border:1px dashed var(--line); border-radius:18px; padding:48px; text-align:center; color:var(--ink-2); }
+  footer { padding:56px 24px 72px; }
+  footer .q { font-size:clamp(24px,3.5vw,40px); font-weight:700; letter-spacing:-.025em; line-height:1.1; max-width:820px; }
+  footer .q em { font-style:normal; background:var(--ink); color:var(--acc); padding:0 8px; border-radius:6px; }
+  footer .s { color:var(--ink-2); margin-top:16px; font-size:13px; }
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <p class="eyebrow">{{ brief.product_name }} · {{ brief.campaign_name or 'Campaign' }}{% if day %} · day {{ day }}{% endif %}</p>
-    <h1>{{ brief.campaign_headline or brief.one_liner }}</h1>
-    {% if brief.campaign_intro %}<p class="intro">{{ brief.campaign_intro }}</p>{% endif %}
-  </header>
+<div class="hero"><div class="wrap">
+  <div class="eyebrow">
+    <span class="chip acc live">{{ 'live' if brief.status in ('live','iterating') else brief.status }}</span>
+    <span class="chip">{{ brief.product_name }}</span>
+    <span class="chip">{{ brief.campaign_name or 'campaign' }}</span>
+    {% if day %}<span class="chip">day {{ day }}</span>{% endif %}
+  </div>
+  <h1>{{ brief.campaign_headline or brief.one_liner }}</h1>
+  {% if brief.campaign_intro %}<p class="intro">{{ brief.campaign_intro }}</p>{% endif %}
+  <a class="cta" href="#posts">{{ (posts[0].cta if posts and posts[0].cta else 'Join the waitlist') | replace('→','') | trim }} →</a>
+  {% set total_imp = posts | map(attribute='metrics') | select | map(attribute='impressions') | sum %}
+  {% set total_sign = posts | map(attribute='metrics') | select | map(attribute='signups') | sum %}
+  <div class="stats">
+    <div class="stat"><div class="v">{{ posts | length }}</div><div class="l">posts live</div></div>
+    <div class="stat"><div class="v">{{ posts | map(attribute='channel') | unique | list | length }}</div><div class="l">channels</div></div>
+    {% if total_imp %}<div class="stat"><div class="v">{{ '{:,}'.format(total_imp) }}</div><div class="l">impressions</div></div>
+    <div class="stat"><div class="v">{{ total_sign }}</div><div class="l">signups</div></div>{% endif %}
+    <div class="stat"><div class="v">0</div><div class="l">humans employed</div></div>
+  </div>
+</div></div>
 
+<section class="posts" id="posts"><div class="wrap">
+  <div class="sec-title"><h2>The campaign</h2><span style="color:var(--ink-2);font-size:13px">{{ brief.audience }}</span></div>
   {% if posts %}
-  <section class="grid">
+  <div class="grid">
     {% for p in posts %}
-    <article>
+    <article class="social">
+      <div class="top"><div class="pfp">{{ brief.product_name[0] }}</div>
+        <div><div class="n">{{ brief.product_name }}</div><div class="h">@{{ brief.product_name | lower | replace(' ','') }}</div></div>
+        <span class="ch {{ p.channel }}">{{ p.channel }}</span></div>
+      <div class="txt"><b>{{ p.headline }}</b>{{ p.body }}</div>
       {% if p.asset_id %}<img src="/api/content/{{ p.id }}/asset.svg" alt="{{ p.headline }}">{% endif %}
-      <div class="meta">
-        <span class="badge">{{ p.channel }}</span>
-        <span>{% if p.round > 1 %}<span class="badge revised">revised after day {{ p.round - 1 }}</span> {% endif %}published {{ p.publish_slot or 'Day 1' }}</span>
+      {% if p.hashtags %}<div class="tags">{{ p.hashtags | join(' ') }}</div>{% endif %}
+      {% if p.cta %}<span class="ctabtn">{{ p.cta | replace('→','') | trim }} →</span>{% endif %}
+      <div class="foot">
+        {% if p.metrics %}<span><b>{{ '{:,}'.format(p.metrics.impressions) }}</b> imp</span><span><b>{{ p.metrics.ctr }}%</b> ctr</span><span><b>{{ p.metrics.likes }}</b> likes</span>{% endif %}
+        {% if p.round > 1 %}<span class="revised">revised after day {{ p.round - 1 }}</span>{% endif %}
+        <span class="when">{{ p.publish_slot or 'Day 1' }}</span>
       </div>
-      <div class="post">
-        <h2>{{ p.headline }}</h2>
-        <p>{{ p.body }}</p>
-        {% if p.cta %}<p class="cta">{{ p.cta | replace('→', '') | trim }} →</p>{% endif %}
-        {% if p.hashtags %}<p class="tags">{{ p.hashtags | join(' ') }}</p>{% endif %}
-      </div>
-      {% if p.metrics %}
-      <div class="metrics"><b>{{ '{:,}'.format(p.metrics.impressions) }}</b> impressions · <b>{{ p.metrics.ctr }}%</b> CTR · <b>{{ p.metrics.likes }}</b> likes{% if p.metrics.days > 1 %} · {{ p.metrics.days }} days{% endif %}</div>
-      {% endif %}
     </article>
     {% endfor %}
-  </section>
+  </div>
   {% else %}
   <div class="empty">Nothing published yet. The board is still reviewing.</div>
   {% endif %}
+</div></section>
 
-  <footer>Produced by Ghost Agency. No humans were employed in the making of this campaign.</footer>
-</main>
+<footer><div class="wrap">
+  <div class="q">Produced by Ghost Agency. <em>No humans</em> were employed in the making of this campaign.</div>
+  <div class="s">Eight AI agents researched, planned, wrote, designed, published and optimised this campaign. A human board approved every post.</div>
+</div></footer>
 </body>
 </html>

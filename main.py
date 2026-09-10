@@ -66,6 +66,7 @@ def campaign_page(brief_id: str, request: Request):
             imp = sum(m["impressions"] for m in ms)
             clk = sum(m["clicks"] for m in ms)
             p["metrics"] = {"impressions": imp, "clicks": clk, "likes": sum(m["likes"] for m in ms),
+                            "signups": sum(m["signups"] for m in ms),
                             "ctr": round(100 * clk / imp, 1) if imp else 0.0, "days": len(ms)}
         else:
             p["metrics"] = None

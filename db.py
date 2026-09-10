@@ -42,6 +42,8 @@ MIGRATIONS = [
     ("metrics", "factors", "TEXT"), ("approvals", "target", "TEXT"), ("approvals", "round", "INTEGER"),
     ("briefs", "active_channels", "TEXT"),
     ("assets", "photo_path", "TEXT"), ("assets", "photo_credit", "TEXT"), ("assets", "photo_url", "TEXT"),
+    ("videos", "generated", "INTEGER DEFAULT 0"),
+    ("briefs", "seo_title", "TEXT"), ("briefs", "meta_description", "TEXT"),
 ]
 
 SCHEMA = """
@@ -63,6 +65,7 @@ CREATE TABLE IF NOT EXISTS briefs (
   audience TEXT, goals TEXT, budget_eur REAL, tone TEXT, channels TEXT,
   status TEXT DEFAULT 'new', campaign_name TEXT, objective TEXT,
   campaign_headline TEXT, campaign_intro TEXT, day INTEGER DEFAULT 0, active_channels TEXT,
+  seo_title TEXT, meta_description TEXT,
   created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS tasks (
@@ -96,7 +99,7 @@ CREATE TABLE IF NOT EXISTS metrics (
 );
 CREATE TABLE IF NOT EXISTS videos (
   id TEXT PRIMARY KEY, brief_id TEXT, task_id TEXT, title TEXT, spec TEXT, caption TEXT,
-  status TEXT DEFAULT 'storyboard', path TEXT, duration_s REAL, error TEXT,
+  status TEXT DEFAULT 'storyboard', path TEXT, duration_s REAL, error TEXT, generated INTEGER DEFAULT 0,
   created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS comments (

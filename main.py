@@ -110,6 +110,8 @@ def clip_file(name: str):
         raise HTTPException(404, "no such clip")
     path = tools.CLIP_DIR / name
     if not path.exists():
+        path = tools.GEN_DIR / name
+    if not path.exists():
         raise HTTPException(404, "no such clip")
     return FileResponse(path, media_type="video/mp4", headers={"Cache-Control": "public, max-age=86400"})
 

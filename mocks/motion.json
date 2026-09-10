@@ -10,7 +10,8 @@
       "seconds": 3,
       "style": "punch",
       "photo_query": "bicycle night rain amsterdam",
-      "treatment": "dark"
+      "treatment": "dark",
+      "video_prompt": "a cyclist rides through rain at night in Amsterdam, wet street reflecting shop lights, slow push-in"
     },
     {
       "text": "Stop paying the theft tax",
@@ -21,7 +22,8 @@
       "seconds": 3,
       "style": "calm",
       "photo_query": "bicycle repair shop mechanic",
-      "treatment": "dark"
+      "treatment": "dark",
+      "video_prompt": "a bicycle mechanic fits a small light to a handlebar in a workshop, warm lamp light, close-up"
     },
     {
       "text": "Replaced in 24h. Free.",
@@ -32,7 +34,8 @@
       "seconds": 3.5,
       "style": "split",
       "photo_query": "courier cyclist city evening",
-      "treatment": "dark"
+      "treatment": "dark",
+      "video_prompt": "a courier on a bicycle crosses a canal bridge at dusk, city lights switching on, tracking shot"
     },
     {
       "text": "Never ride dark.",
@@ -43,7 +46,8 @@
       "seconds": 3,
       "style": "punch",
       "photo_query": "cyclist amsterdam canal night",
-      "treatment": "dark"
+      "treatment": "dark",
+      "video_prompt": "rows of parked bicycles along an Amsterdam canal at blue hour, one bike light blinking, slow pan"
     }
   ],
   "caption": "Lights stolen again? We replace them in 24h, free. EUR 9/month. Waitlist open. #Nachtfiets #Amsterdam",

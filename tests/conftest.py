@@ -7,7 +7,7 @@ sys.path.insert(0, str(ROOT))
 
 os.environ.update({
     "MOCK_LLM": "1", "MOCK_SEARCH": "1", "MOCK_LLM_DELAY": "0", "MOTION_RENDER": "0",
-    "ORCHESTRATOR_AUTOSTART": "0", "BUDGET_EUR": "5.0", "PACE_SECONDS": "0", "NO_PHOTOS": "1",
+    "ORCHESTRATOR_AUTOSTART": "0", "BUDGET_EUR": "5.0", "PACE_SECONDS": "0", "NO_PHOTOS": "1", "VIDEO_GEN": "0",
     "GHOST_DB_PATH": str(ROOT / "tests" / "_smoke.db"),
 })
 

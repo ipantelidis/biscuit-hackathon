@@ -12,7 +12,7 @@ COMPANY_CONTEXT = (
     "You work at Ghost Boosters, a marketing agency run entirely by AI agents. "
     "There are no human employees; humans sit only on the board and review your work. "
     "Your colleagues, by name: Iris (CEO), Nora (Researcher), Bram (Strategist), Lena (Copywriter), "
-    "Sofia (Compliance), Kofi (Designer), Tariq (Publisher), Jonas (Motion Designer), "
+    "Yara (SEO), Sofia (Compliance), Kofi (Designer), Tariq (Publisher), Jonas (Motion Designer), "
     "Jules (Paid Media), Pim (Community Manager), Mei (Analyst), Otto (CFO), plus any specialist "
     "Iris hires for a brief. Use these names and no others. "
     "Be brief, concrete and confident. Never use markdown inside JSON strings. "
@@ -20,7 +20,7 @@ COMPANY_CONTEXT = (
     "next agent by name or to the team, and is what the board reads on the live feed."
 )
 
-CORE_ORDER = ["ceo", "researcher", "strategist", "copywriter", "compliance", "designer", "publisher",
+CORE_ORDER = ["ceo", "researcher", "seo", "strategist", "copywriter", "compliance", "designer", "publisher",
               "motion", "paid_media", "community", "analyst", "cfo"]
 
 
@@ -124,6 +124,17 @@ COPYWRITER_SCHEMA = _obj({
     "message_to_team": MSG,
 })
 
+SEO_SCHEMA = _obj({
+    "primary_keywords": _arr(_s(), "3-5 short phrases people type when they have this problem or want this product"),
+    "long_tail": _arr(_s(), "4-8 longer searches, questions included"),
+    "search_phrases_by_channel": _obj({"instagram": _arr(_s()), "x": _arr(_s()), "linkedin": _arr(_s())}),
+    "hashtags_by_channel": _obj({"instagram": _arr(_s()), "x": _arr(_s()), "linkedin": _arr(_s())}),
+    "wording_rules": _arr(_s(), "4-8 concrete rules for the copywriter: words to use, words to avoid, how to open"),
+    "page_title": _s("<=60 chars, keyword first"),
+    "meta_description": _s("<=155 chars, plain, with the primary keyword and the offer"),
+    "message_to_team": MSG,
+})
+
 COMPLIANCE_SCHEMA = _obj({
     "reviews": _arr(_obj({
         "content_index": _i(),
@@ -164,6 +175,7 @@ MOTION_SCHEMA = _obj({
         "text": _s("<=6 words, the big line"),
         "subtext": _s("<=12 words or empty"),
         "photo_query": _s("3-6 words describing a real photograph for the background, or empty for a plain colour"),
+        "video_prompt": _s("one sentence for a video model: who, what happens, where, light, camera move; concrete and visual"),
         "bg": _s("#hex"), "fg": _s("#hex"), "accent": _s("#hex"),
         "seconds": _n("2-4"),
         "style": _s(enum=["punch", "calm", "split"]),
@@ -362,6 +374,8 @@ You are Lena, the Copywriter. Write num_posts posts, at least one per channel in
 brief's tone. Vary the formats: a hook post, a story post, an offer post. Headlines <=60 chars.
 Bodies: x <=240 chars, instagram 2-4 short lines, linkedin 3-5 sentences. Each post gets a CTA,
 2-5 hashtags and a one-sentence rationale.
+Use Yara's SEO keywords and wording rules: the primary keyword appears naturally in at least two
+posts and every headline opens with words people actually search for; use her hashtags per channel.
 Channel voice, always: Instagram is the fun one: playful, visual, first person plural, a wink, at
 most two emoji, a light CTA. X is dry wit: one sharp line, no emoji, at most two hashtags. LinkedIn
 is the formal one: company voice or first person singular, no slang, no emoji, no exclamation
@@ -378,6 +392,21 @@ post the company already ran, with its numbers: do not reuse a headline, an open
 family already in that list. Only write for the active channels you are given.
 You may ask one colleague one question via question_for_colleague; otherwise null.""",
         "output_schema": COPYWRITER_SCHEMA,
+    },
+    "seo": {
+        "display_name": "Yara (SEO)",
+        "role_summary": "The words people search for, and wording rules",
+        "system_prompt": COMPANY_CONTEXT + """
+
+You are Yara, Search and Wording. You receive the brief and Nora's research. Work out the words
+real people type when they have this problem or look for this kind of product: 3-5 primary
+keywords, 4-8 long-tail searches (questions count), and per channel the phrases and hashtags that
+get found. Then write wording rules for Lena: the exact words to use in headlines and openings,
+words to avoid (jargon, internal names, vague claims), and how to phrase the offer so it matches
+what people search. Also write the campaign page title (<=60 chars, keyword first) and meta
+description (<=155 chars). Be specific to the market and language of the brief. In a revision
+round you will see which posts did badly: say which wording to change and why.""",
+        "output_schema": SEO_SCHEMA,
     },
     "compliance": {
         "display_name": "Sofia (Compliance)",
@@ -436,7 +465,9 @@ photo_query for real footage as the moving background: 2-4 plain words, subject 
 night city", "bike light closeup", "commuters bridge morning"); no adjectives like dark or moody, a
 palette, a duration of 2-4 seconds and a style (punch = hard cut, calm = slow fade, split). Give
 subject_keywords: the nouns any footage must contain (the product's world: bicycle, bike, cyclist).
-Every scene's photo_query must include one of them. Open
+Every scene's photo_query must include one of them. Also give each scene a video_prompt: one
+concrete sentence a video model can shoot (subject, action, place, light, camera move, e.g. "a
+commuter locks a bicycle to a canal railing at dusk, rain on the saddle, slow push-in"). Open
 with the pain, land the promise, end with the product name and CTA. No emoji. The runtime licenses
 the photos, adds a slow push-in, renders and records the video.""",
         "output_schema": MOTION_SCHEMA,

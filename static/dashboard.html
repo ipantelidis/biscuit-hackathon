@@ -282,7 +282,7 @@
 <header>
   <div class="brand">
     <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7v10l3-2 2 2 2-2 2 2 2-2 3 2V10a7 7 0 0 0-7-7z"/><circle cx="9.5" cy="11" r="1" fill="currentColor"/><circle cx="14.5" cy="11" r="1" fill="currentColor"/></svg></div>
-    <div><h1>Ghost Boosters</h1><small>0 employees · 12 agents · 1 board</small></div>
+    <div><h1>Ghost Boosters</h1><small>0 employees · 13 agents · 1 board</small></div>
   </div>
   <div class="co-status" id="company-status"><span class="dot"></span><span>starting</span></div>
   <div class="gauge">
@@ -388,7 +388,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 const eur = (v) => '€' + (Number(v) || 0).toFixed(2);
 const AGENTS = {
   ceo:{name:'Iris',color:'#c6ff4a'}, researcher:{name:'Nora',color:'#69b7ff'}, strategist:{name:'Bram',color:'#ffc94d'},
-  copywriter:{name:'Lena',color:'#ff8ad4'}, compliance:{name:'Sofia',color:'#ff7a7a'}, designer:{name:'Kofi',color:'#9d7bff'},
+  copywriter:{name:'Lena',color:'#ff8ad4'}, seo:{name:'Yara',color:'#8affd4'}, compliance:{name:'Sofia',color:'#ff7a7a'}, designer:{name:'Kofi',color:'#9d7bff'},
   publisher:{name:'Tariq',color:'#4de3c1'}, motion:{name:'Jonas',color:'#7bdcff'}, paid_media:{name:'Jules',color:'#ffe08a'},
   community:{name:'Pim',color:'#b8ff9a'}, analyst:{name:'Mei',color:'#ff9f5a'}, cfo:{name:'Otto',color:'#c9d3dd'},
   board:{name:'Board',color:'#eef2f6'}, all:{name:'everyone',color:'#eef2f6'}
@@ -397,7 +397,7 @@ const HIRED = {};   // key -> {name, color} learned from /api/state
 const who = (k) => (AGENTS[k] || HIRED[k] || {name:k}).name;
 const col = (k) => (AGENTS[k] || HIRED[k] || {color:'#888'}).color;
 const ini = (k) => who(k)[0];
-const CORE = Object.keys(AGENTS).slice(0, 12);
+const CORE = Object.keys(AGENTS).slice(0, 13);
 
 let seenMsgs = new Set(), state = null, vetoOpen = new Set(), inboxKey = '', firstPoll = true, lastBriefId = null;
 
@@ -450,9 +450,9 @@ function renderOrg(s) {
 }
 
 /* ---------- pipeline graph ---------- */
-const NODES = {ceo:[50,55], researcher:[170,55], strategist:[290,55], copywriter:[410,55], compliance:[530,55], designer:[650,55], publisher:[770,55],
+const NODES = {ceo:[50,55], researcher:[170,55], seo:[290,135], strategist:[290,55], copywriter:[410,55], compliance:[530,55], designer:[650,55], publisher:[770,55],
                motion:[890,20], paid_media:[890,90], cfo:[960,55], community:[700,135], analyst:[520,135]};
-const EDGES = [['ceo','researcher'],['researcher','strategist'],['strategist','copywriter'],['copywriter','compliance'],['compliance','designer'],['designer','publisher'],
+const EDGES = [['ceo','researcher'],['researcher','strategist'],['researcher','seo'],['seo','copywriter'],['strategist','copywriter'],['copywriter','compliance'],['compliance','designer'],['designer','publisher'],
                ['publisher','motion'],['publisher','paid_media'],['paid_media','cfo'],
                ['publisher','community','loop'],['community','analyst'],['analyst','strategist','loop']];
 let flowKey = null;
@@ -574,7 +574,7 @@ function renderPipeline(s) {
 let contentKey = null;
 function renderContent(s) {
   const grid = $('#content');
-  const key = (s.brief ? s.brief.id : '-') + '|' + (s.video ? s.video.id + s.video.status + (s.video.has_footage ? 'f' : '') : '') + '|' +
+  const key = (s.brief ? s.brief.id : '-') + '|' + (s.video ? s.video.id + s.video.status + (s.video.has_footage ? 'f' : '') + (s.video.generated ? 'g' : '') : '') + '|' +
     s.content.map(c => c.id + c.status + (c.has_asset ? 'a' : '') + (c.metrics ? c.metrics.impressions : '')).join(',');
   if (key === contentKey) return;
   contentKey = key;
@@ -589,7 +589,7 @@ function renderContent(s) {
   if (!s.content.length && !s.video) { grid.innerHTML = '<div class="empty">No posts yet. Lena is up after Bram.</div>'; $('#content-count').textContent = ''; return; }
   $('#content-count').textContent = `${s.content.filter(c => c.status === 'published').length} live · ${s.content.length} total`;
   const vid = s.video ? `<div class="post video"><div class="poster"><iframe src="/motion/${s.brief.id}?loop=1" title="campaign video"></iframe>
-      <div class="ov"><span class="chip acc">video</span><span class="chip ${s.video.status === 'ready' ? 'acc' : s.video.status === 'rendering' ? 'warn' : ''}">${s.video.status === 'ready' ? 'rendered' : s.video.status}</span></div></div>
+      <div class="ov"><span class="chip acc">video</span><span class="chip ${s.video.status === 'ready' ? 'acc' : (s.video.status === 'rendering' || s.video.status === 'generating') ? 'warn' : ''}">${s.video.status === 'ready' ? (s.video.generated ? 'generated on our GPUs' : 'rendered') : s.video.status === 'generating' ? 'generating shots…' : s.video.status}</span></div></div>
       <div class="in"><div class="h">${esc(s.video.title)}</div><div class="m"><span><b>${Math.round(s.video.duration_s || 0)}s</b> · Jonas</span><button data-redo-video style="margin-left:auto;padding:1px 8px;font-size:11px;border-radius:6px" title="Ask Jonas for a new cut with real footage">Redo</button></div></div></div>` : '';
   grid.innerHTML = vid + s.content.map(c => `
     <div class="post ${c.status}">

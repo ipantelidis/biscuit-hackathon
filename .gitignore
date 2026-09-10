@@ -8,3 +8,4 @@ ghost.db-shm
 tests/_smoke.db*
 .pytest_cache/
 media/
+.venv-video/

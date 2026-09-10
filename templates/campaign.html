@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ brief.product_name }} · {{ brief.campaign_name or 'Campaign' }}</title>
+<title>{{ brief.seo_title or (brief.product_name ~ ' · ' ~ (brief.campaign_name or 'Campaign')) }}</title>
+{% if brief.meta_description %}<meta name="description" content="{{ brief.meta_description }}">{% endif %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -98,7 +99,7 @@
   <div class="film">
     {% if video.status == 'ready' %}<video src="/api/videos/{{ video.id }}.webm" autoplay muted loop playsinline></video>
     {% else %}<iframe src="/motion/{{ brief.id }}?loop=1" title="{{ video.title }}"></iframe>{% endif %}
-    <div class="cap"><span class="chip acc">{{ video.title }}</span><span class="chip">{{ video.duration_s | round | int }}s</span></div>
+    <div class="cap"><span class="chip acc">{{ video.title }}</span><span class="chip">{{ video.duration_s | round | int }}s</span>{% if video.generated %}<span class="chip">shot by our model</span>{% endif %}</div>
   </div>
   {% if footage %}<div class="footage">Footage: {{ footage | join(' · ') }}</div>{% endif %}
   {% endif %}

@@ -776,3 +776,58 @@ def find_video(query: str, max_seconds: int = 30, exclude: set[str] | None = Non
     except Exception as e:
         log.warning("footage lookup failed for %r: %s", query, e)
         return None
+
+
+# ------------------------------------------------------------------ generated video (local GPU)
+
+GEN_DIR = Path(__file__).parent / "media" / "generated"
+VIDEO_VENV = Path(__file__).parent / ".venv-video" / "bin" / "python"
+
+
+def video_generation_available() -> bool:
+    """VIDEO_GEN=0 disables; otherwise on when the video environment exists."""
+    if os.environ.get("VIDEO_GEN", "auto").strip().lower() in ("0", "false", "off", "no"):
+        return False
+    return VIDEO_VENV.exists()
+
+
+def visible_gpus() -> list[int]:
+    raw = os.environ.get("VIDEO_GPUS", "").strip()
+    if raw:
+        return [int(x) for x in raw.split(",") if x.strip().isdigit()]
+    try:
+        import subprocess
+        out = subprocess.run(["nvidia-smi", "--query-gpu=index,memory.used", "--format=csv,noheader,nounits"],
+                             capture_output=True, text=True, timeout=10).stdout
+        free = [int(l.split(",")[0]) for l in out.strip().splitlines() if int(l.split(",")[1]) < 4000]
+        return free or [0]
+    except Exception:
+        return [0]
+
+
+def generate_clip(prompt: str, out_path: str, seconds: float = 4.0, gpu: int = 0, seed: int = 7) -> dict:
+    """Run video_gen.py in the video environment on one GPU. Returns its JSON result."""
+    import subprocess
+    GEN_DIR.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "CUDA_VISIBLE_DEVICES": str(gpu)}
+    cmd = [str(VIDEO_VENV), str(Path(__file__).parent / "video_gen.py"), "--prompt", prompt, "--out", out_path,
+           "--seconds", str(seconds), "--seed", str(seed)]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=float(os.environ.get("VIDEO_GEN_TIMEOUT", "900")), env=env)
+        last = (r.stdout.strip().splitlines() or ["{}"])[-1]
+        try:
+            res = json.loads(last)
+        except ValueError:
+            res = {"ok": False, "error": (r.stderr or r.stdout)[-300:]}
+        if not res.get("ok"):
+            log.warning("clip generation failed on gpu %s: %s", gpu, res.get("error"))
+        return res
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:300]}
+
+
+def scene_prompt(sc: dict, brief: dict) -> str:
+    base = sc.get("video_prompt") or sc.get("photo_query") or sc.get("text") or ""
+    return (f"{base}. Realistic cinematic footage, natural light, handheld camera, shallow depth of field, "
+            f"24fps, no text, no logos. Setting: the world of {brief.get('product_name', 'the product')}: "
+            f"{(brief.get('one_liner') or '')[:120]}")

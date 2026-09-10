@@ -125,6 +125,23 @@ class Review(BaseModel):
     note: str = ""
 
 
+class ChannelLists(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    instagram: list[str] = Field(default_factory=list)
+    x: list[str] = Field(default_factory=list)
+    linkedin: list[str] = Field(default_factory=list)
+
+
+class SeoOut(_Out):
+    primary_keywords: list[str] = Field(default_factory=list)
+    long_tail: list[str] = Field(default_factory=list)
+    search_phrases_by_channel: ChannelLists = Field(default_factory=ChannelLists)
+    hashtags_by_channel: ChannelLists = Field(default_factory=ChannelLists)
+    wording_rules: list[str] = Field(default_factory=list)
+    page_title: str = ""
+    meta_description: str = ""
+
+
 class ComplianceOut(_Out):
     reviews: list[Review] = Field(default_factory=list)
     summary: str = ""
@@ -189,6 +206,7 @@ class Scene(BaseModel):
     text: str = Field(..., min_length=1)
     subtext: str = ""
     photo_query: str = ""
+    video_prompt: str = ""
     treatment: Literal["dark", "light"] = "dark"
     bg: str = "#0b0d12"
     fg: str = "#ffffff"
@@ -328,7 +346,7 @@ class ChatOut(BaseModel):
 
 MODELS: dict[str, type[_Out]] = {
     "ceo": CeoOut, "researcher": ResearcherOut, "strategist": StrategistOut, "copywriter": CopywriterOut,
-    "compliance": ComplianceOut, "designer": DesignerOut, "publisher": PublisherOut, "motion": MotionOut,
+    "seo": SeoOut, "compliance": ComplianceOut, "designer": DesignerOut, "publisher": PublisherOut, "motion": MotionOut,
     "paid_media": PaidMediaOut, "community": CommunityOut, "analyst": AnalystOut, "cfo": CfoOut,
 }
 MODE_MODELS: dict[str, type[_Out]] = {

@@ -16,7 +16,7 @@ def kinds(messages):
 
 def test_full_loop(client):
     s = client.get("/api/state").json()
-    assert len(s["agents"]) == 12 and s["brief"] is None
+    assert len(s["agents"]) == 13 and s["brief"] is None
 
     bid = client.post("/api/briefs/demo").json()["brief_id"]
     runtime.tick()
@@ -130,7 +130,7 @@ def test_kill_switch_and_reset(client):
     assert runtime.tick() >= 1
     client.post("/api/reset")
     s = client.get("/api/state").json()
-    assert s["brief"] is None and s["company"]["spent_eur"] == 0 and len(s["agents"]) == 12
+    assert s["brief"] is None and s["company"]["spent_eur"] == 0 and len(s["agents"]) == 13
 
 
 def test_budget_guard(client):

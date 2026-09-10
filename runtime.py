@@ -21,10 +21,10 @@ log = logging.getLogger("ghost.runtime")
 ROOT = Path(__file__).parent
 MEDIA_DIR = ROOT / "media"
 
-TO_AGENT = {"ceo": "all", "researcher": "strategist", "strategist": "copywriter", "copywriter": "compliance",
+TO_AGENT = {"ceo": "all", "researcher": "strategist", "seo": "copywriter", "strategist": "copywriter", "copywriter": "compliance",
             "compliance": "board", "designer": "board", "publisher": "all", "motion": "board",
             "paid_media": "board", "community": "analyst", "analyst": "strategist", "cfo": "board"}
-KIND = {"ceo": "status", "researcher": "handoff", "strategist": "handoff", "copywriter": "handoff",
+KIND = {"ceo": "status", "researcher": "handoff", "seo": "handoff", "strategist": "handoff", "copywriter": "handoff",
         "compliance": "handoff", "designer": "handoff", "publisher": "status", "motion": "handoff",
         "paid_media": "report", "community": "report", "analyst": "report", "cfo": "report"}
 HIRE_COLORS = ["#ffd166", "#06d6a0", "#ef476f", "#8ecae6", "#f4a261"]
@@ -186,6 +186,11 @@ def ctx_copywriter(task: dict, brief: dict) -> str:
     notes = veto_notes(brief["id"], ("copywriter", "both"), since_round=task["round"] - 1)
     if notes:
         parts.append("## Board veto notes on earlier posts (do not repeat these approaches)\n" + _j(notes))
+    seo = _latest_output(brief["id"], "seo")
+    if seo:
+        parts.append("## Search and wording rules from Yara (SEO). Use the keywords naturally; follow the rules.\n"
+                     + _j({k: seo.get(k) for k in ("primary_keywords", "long_tail", "search_phrases_by_channel",
+                                                    "hashtags_by_channel", "wording_rules")}))
     specialists = db.query("tasks", "brief_id = ? AND status = 'done' AND json_extract(input,'$.specialist') = 1",
                            [brief["id"]])
     for sp in specialists:
@@ -235,6 +240,18 @@ def ctx_strategist(task: dict, brief: dict) -> str:
             for p in post_performance(brief["id"])]
     parts.append("## Content performance so far\n" + _j(perf))
     parts.append("## Active channels\n" + _j(active_channels(brief)))
+    return "\n\n".join(parts)
+
+
+def ctx_seo(task: dict, brief: dict) -> str:
+    if task["round"] <= 1:
+        return ""
+    perf = [{k: p[k] for k in ("round", "channel", "headline", "body", "days_live", "ctr_per_day", "signups")}
+            for p in post_performance(brief["id"]) if p["status"] == "published"]
+    prev = _latest_output(brief["id"], "seo")
+    parts = ["## How the posts did (lowest ctr_per_day = wording to fix first)\n" + _j(sorted(perf, key=lambda p: p["ctr_per_day"] or 0))]
+    if prev:
+        parts.append("## Your previous keywords and rules\n" + _j({k: prev.get(k) for k in ("primary_keywords", "wording_rules")}))
     return "\n\n".join(parts)
 
 
@@ -391,7 +408,7 @@ def ctx_mode(task: dict, brief: dict) -> str:
     return ""
 
 
-CONTEXT_BUILDERS = {"researcher": ctx_researcher, "strategist": ctx_strategist, "copywriter": ctx_copywriter, "compliance": ctx_compliance,
+CONTEXT_BUILDERS = {"researcher": ctx_researcher, "seo": ctx_seo, "strategist": ctx_strategist, "copywriter": ctx_copywriter, "compliance": ctx_compliance,
                     "designer": ctx_designer, "publisher": ctx_publisher, "motion": ctx_motion,
                     "paid_media": ctx_paid_media, "community": ctx_community, "analyst": ctx_analyst,
                     "cfo": ctx_cfo}
@@ -526,8 +543,14 @@ def hook_ceo(task: dict, out: dict, brief: dict) -> None:
                             "status": "ready" if not deps else "blocked", "round": 1})
     db.update("briefs", brief["id"], {"status": "in_progress", "campaign_name": out["campaign_name"],
                                       "objective": out["objective"]})
-    # hiring: create the specialist agent and a task that feeds the copywriter
     by_agent = {t["agent"]: tid for tid, t in created}
+    # search and wording: Yara works from Nora's research; Lena waits for her
+    seo_id = db.insert("tasks", {"brief_id": brief["id"], "agent_key": "seo", "title": "Find the words people search for",
+                                 "input": {}, "depends_on": [by_agent["researcher"]] if "researcher" in by_agent else [],
+                                 "status": "blocked" if "researcher" in by_agent else "ready", "round": 1})
+    if "copywriter" in by_agent:
+        _add_dep(by_agent["copywriter"], seo_id)
+    # hiring: create the specialist agent and a task that feeds the copywriter
     for h in (out.get("hires") or [])[:1]:
         key = h["key"]
         if key in AGENTS:
@@ -622,6 +645,11 @@ def hook_compliance(task: dict, out: dict, brief: dict) -> None:
         post_message(brief["id"], "compliance", "board", "report", out["summary"], task["id"])
 
 
+def hook_seo(task: dict, out: dict, brief: dict) -> None:
+    db.update("briefs", brief["id"], {"seo_title": out.get("page_title") or None,
+                                      "meta_description": out.get("meta_description") or None})
+
+
 def hook_designer(task: dict, out: dict, brief: dict) -> None:
     content_ids = task["input"].get("content_ids", [])
     specs = {a["content_index"]: a for a in out["assets"]}
@@ -682,20 +710,70 @@ def hook_publisher(task: dict, out: dict, brief: dict) -> None:
                         "input": {"mode": "board_report"}, "depends_on": [pm_id], "status": "blocked", "round": rnd})
 
 
+def _record_cut(video_id: str, brief: dict, spec: dict, suffix: str = "") -> Path:
+    MEDIA_DIR.mkdir(exist_ok=True)
+    html_path = MEDIA_DIR / f"{video_id}{suffix}.html"
+    html_path.write_text(tools.render_motion_html(spec, brief["product_name"], loop=False), encoding="utf-8")
+    out = MEDIA_DIR / f"{video_id}{suffix}.webm"
+    tools.record_motion_video(str(html_path), tools.motion_duration(spec), str(out))
+    return out
+
+
+def _generate_scene_clips(video_id: str, brief: dict, spec: dict) -> int:
+    """Generate one clip per scene on the local GPUs, in parallel. Returns how many succeeded."""
+    from concurrent.futures import ThreadPoolExecutor
+    scenes = [sc for sc in spec["scenes"] if sc.get("video_prompt") or sc.get("photo_query")]
+    gpus = tools.visible_gpus()
+    if not scenes or not gpus:
+        return 0
+
+    def one(i_sc):
+        i, sc = i_sc
+        out = tools.GEN_DIR / f"{video_id}-{i}.mp4"
+        res = tools.generate_clip(tools.scene_prompt(sc, brief), str(out), seconds=min(4.0, float(sc.get("seconds") or 3)),
+                                  gpu=gpus[i % len(gpus)], seed=7 + i)
+        return i, res
+
+    done = 0
+    with ThreadPoolExecutor(max_workers=len(gpus)) as ex:
+        for i, res in ex.map(one, list(enumerate(scenes))):
+            if res.get("ok"):
+                scenes[i]["clip"] = res["path"]
+                scenes[i]["clip_credit"] = "Generated by Jonas on our GPUs"
+                scenes[i]["generated"] = True
+                done += 1
+    return done
+
+
 def _render_video_async(video_id: str, brief: dict, spec: dict) -> None:
     def work():
         try:
-            MEDIA_DIR.mkdir(exist_ok=True)
-            html_path = MEDIA_DIR / f"{video_id}.html"
-            html_path.write_text(tools.render_motion_html(spec, brief["product_name"], loop=False), encoding="utf-8")
-            out = MEDIA_DIR / f"{video_id}.webm"
-            tools.record_motion_video(str(html_path), tools.motion_duration(spec), str(out))
+            out = _record_cut(video_id, brief, spec)
             db.update("videos", video_id, {"status": "ready", "path": str(out)})
             post_message(brief["id"], "motion", "board", "status",
-                         f"The campaign video is rendered ({tools.motion_duration(spec):.0f}s). It is on the campaign page.")
+                         f"First cut of the campaign video is up ({tools.motion_duration(spec):.0f}s, real footage). "
+                         + ("I am now generating our own shots for it on the GPUs; the new cut replaces this one when done."
+                            if tools.video_generation_available() else "It is on the campaign page."))
         except Exception as e:  # keep the HTML animation as the deliverable
             log.warning("video render failed: %s", e)
             db.update("videos", video_id, {"status": "html_only", "error": str(e)[:300]})
+            return
+        if not tools.video_generation_available():
+            return
+        try:
+            db.update("videos", video_id, {"status": "generating"})
+            n = _generate_scene_clips(video_id, brief, spec)
+            if n:
+                out = _record_cut(video_id, brief, spec, "-gen")
+                db.update("videos", video_id, {"status": "ready", "path": str(out), "spec": spec, "generated": 1})
+                post_message(brief["id"], "motion", "board", "status",
+                             f"Generated cut is in: {n} of {len(spec['scenes'])} scenes shot by our own model, "
+                             "straight from the storyboard. It replaced the stock-footage cut on the campaign page.")
+            else:
+                db.update("videos", video_id, {"status": "ready", "error": "generation produced no clips"})
+        except Exception as e:
+            log.warning("generated cut failed: %s", e)
+            db.update("videos", video_id, {"status": "ready", "error": str(e)[:300]})
     threading.Thread(target=work, name="video-render", daemon=True).start()
 
 
@@ -829,9 +907,12 @@ def hook_analyst(task: dict, out: dict, brief: dict) -> None:
                "recommendations": [r for r in recs if r.get("target_agent") == "copywriter"] or recs}
     if channel_focus:
         c_input["channel_focus"] = channel_focus
+    seo_id = db.insert("tasks", {"brief_id": brief["id"], "agent_key": "seo",
+                                 "title": f"Fix the wording of what did not work (round {next_round})",
+                                 "input": {"revision": True}, "depends_on": [s_id], "status": "blocked", "round": next_round})
     c_id = db.insert("tasks", {"brief_id": brief["id"], "agent_key": "copywriter",
                                "title": f"Write round {next_round} posts on the analyst's recommendations",
-                               "input": c_input, "depends_on": [s_id], "status": "blocked", "round": next_round})
+                               "input": c_input, "depends_on": [s_id, seo_id], "status": "blocked", "round": next_round})
     db.insert("tasks", {"brief_id": brief["id"], "agent_key": "publisher",
                         "title": f"Ship round {next_round}", "input": {}, "depends_on": [c_id],
                         "status": "blocked", "round": next_round})
@@ -883,7 +964,7 @@ def hook_mode_board_report(task: dict, out: dict, brief: dict) -> None:
                           "day": brief.get("day") or 0, "headline": out["headline"], "body": out})
 
 
-HOOKS = {"ceo": hook_ceo, "copywriter": hook_copywriter, "compliance": hook_compliance, "designer": hook_designer,
+HOOKS = {"ceo": hook_ceo, "seo": hook_seo, "copywriter": hook_copywriter, "compliance": hook_compliance, "designer": hook_designer,
          "publisher": hook_publisher, "motion": hook_motion, "paid_media": hook_paid_media,
          "community": hook_community, "analyst": hook_analyst, "cfo": hook_cfo}
 MODE_HOOKS = {"answer": hook_mode_answer, "standup": hook_mode_standup, "board_report": hook_mode_board_report,
@@ -1130,7 +1211,7 @@ def _chat_state(brief: dict | None) -> dict:
     return st
 
 
-AGENT_ALIASES = {"nora": "researcher", "bram": "strategist", "lena": "copywriter", "sofia": "compliance", "kofi": "designer",
+AGENT_ALIASES = {"nora": "researcher", "yara": "seo", "bram": "strategist", "lena": "copywriter", "sofia": "compliance", "kofi": "designer",
                  "tariq": "publisher", "jonas": "motion", "jules": "paid_media", "pim": "community", "mei": "analyst",
                  "otto": "cfo", "iris": "ceo"}
 

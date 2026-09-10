@@ -2,11 +2,54 @@
   "campaign_name": "Never Ride Dark",
   "objective": "Get 300 Amsterdam cyclists on the Nachtfiets waitlist in two weeks by making stolen lights feel like a solved problem.",
   "tasks": [
-    {"id": "t1", "agent": "researcher", "title": "Map the Amsterdam bike-light market and who keeps losing lights", "input": {"focus": "competitors, audience, theft frequency"}, "depends_on": []},
-    {"id": "t2", "agent": "strategist", "title": "Position Nachtfiets and plan two weeks across Instagram, LinkedIn and X", "input": {}, "depends_on": ["t1"]},
-    {"id": "t3", "agent": "copywriter", "title": "Write the launch posts, one per channel", "input": {"num_posts": 3}, "depends_on": ["t2"]},
-    {"id": "t4", "agent": "publisher", "title": "Ship approved posts and build the campaign page", "input": {}, "depends_on": ["t3"]}
+    {
+      "id": "t1",
+      "agent": "researcher",
+      "title": "Map the Amsterdam bike-light market and who keeps losing lights",
+      "input": {
+        "focus": "competitors, audience, theft frequency"
+      },
+      "depends_on": []
+    },
+    {
+      "id": "t2",
+      "agent": "strategist",
+      "title": "Position Nachtfiets and plan two weeks across Instagram, LinkedIn and X",
+      "input": {},
+      "depends_on": [
+        "t1"
+      ]
+    },
+    {
+      "id": "t3",
+      "agent": "copywriter",
+      "title": "Write the launch posts, one per channel",
+      "input": {
+        "num_posts": 3
+      },
+      "depends_on": [
+        "t2"
+      ]
+    },
+    {
+      "id": "t4",
+      "agent": "publisher",
+      "title": "Ship approved posts and build the campaign page",
+      "input": {},
+      "depends_on": [
+        "t3"
+      ]
+    }
   ],
   "escalations": [],
-  "message_to_team": "Team, new client: Nachtfiets, a EUR 9/month bike-light subscription. Goal is 300 waitlist signups in two weeks. Nora, start with the market; Bram, plan on her findings; Lena, three sharp posts; Tariq, ship what the board approves."
+  "message_to_team": "Team, new client: Nachtfiets, a EUR 9/month bike-light subscription. Goal is 300 waitlist signups in two weeks. Nora, start with the market; Bram, plan on her findings; Lena, three sharp posts; Tariq, ship what the board approves.",
+  "hires": [
+    {
+      "key": "localizer",
+      "name": "Femke",
+      "role": "Dutch Localizer",
+      "why": "The brief wants Dutch-direct tone for Amsterdam students; a native ear will keep the cheek from sounding translated.",
+      "brief": "Give the copywriter exact Dutch phrases, slang and tone rules for Amsterdam students and commuters, and flag words that sound corporate or scammy in Dutch."
+    }
+  ]
 }

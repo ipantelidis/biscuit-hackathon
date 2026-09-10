@@ -8,8 +8,21 @@
     "Likes on C2 were strong but clicks lagged, so the CTA in bio is losing people"
   ],
   "recommendations": [
-    {"action": "Put a number in every headline and make X the lead channel", "why": "The numbered X headline was the clear winner on CTR", "target_agent": "strategist"},
-    {"action": "Rewrite the next posts to open with a figure, keep the story format for Instagram only", "why": "Numbers drove clicks; stories drove likes but not clicks", "target_agent": "copywriter"}
+    {
+      "action": "Put a number in every headline and make X the lead channel",
+      "why": "The numbered X headline was the clear winner on CTR",
+      "target_agent": "strategist"
+    },
+    {
+      "action": "Rewrite the next posts to open with a figure, keep the story format for Instagram only",
+      "why": "Numbers drove clicks; stories drove likes but not clicks",
+      "target_agent": "copywriter"
+    },
+    {
+      "action": "Move ad budget from LinkedIn to X",
+      "why": "LinkedIn had the highest cost per signup, X the lowest",
+      "target_agent": "paid_media"
+    }
   ],
   "message_to_team": "Bram, day-1 report is on the bus: the numbered X headline won on CTR, LinkedIn story post lost. Revise the plan: numbers first, X leads, LinkedIn to weekly. Lena gets the details from you."
 }

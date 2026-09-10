@@ -1,0 +1,10 @@
+{
+  "allocation": [
+    {"channel": "instagram", "share_pct": 45, "daily_eur": 16, "objective": "waitlist signups from students"},
+    {"channel": "x", "share_pct": 35, "daily_eur": 12.5, "objective": "reach on theft jokes, cheap clicks"},
+    {"channel": "linkedin", "share_pct": 20, "daily_eur": 7, "objective": "commuter credibility"}
+  ],
+  "expected_cpa_eur": 4.5,
+  "rationale": "EUR 500 over 14 days is about EUR 36 a day. Instagram gets the biggest share because the student persona lives there; X is cheap reach; LinkedIn is expensive per click so it gets the least until it proves itself.",
+  "message_to_team": "Board, ad plan is set: EUR 36 a day, Instagram 45, X 35, LinkedIn 20. I expect around EUR 4.50 per signup. Mei, I will move money after your first report."
+}

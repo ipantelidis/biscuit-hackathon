@@ -1,0 +1,7 @@
+{
+  "items": [
+    {"channel": "linkedin", "headline": "A EUR 60 fine for a EUR 4 light", "body": "Every autumn Amsterdam commuters get fined for riding without lights, often because the lights were stolen the week before. We built Nachtfiets to end that loop: a pair of bright clip lights on subscription, and we replace them within 24 hours whenever they disappear. EUR 9 a month. We launch in October and the waitlist is open today.", "cta": "Join the waitlist", "hashtags": ["#Amsterdam", "#commuting", "#startup"], "rationale": "Rewrite per Sofia: removed the unverified 'thousands' figure and softened the 24h promise to a plain statement.", "risk_flags": []}
+  ],
+  "question_for_colleague": null,
+  "message_to_team": "Sofia, LinkedIn post rewritten: no numbers I cannot back, 24h stated plainly. Board, it is in your inbox with the other two."
+}

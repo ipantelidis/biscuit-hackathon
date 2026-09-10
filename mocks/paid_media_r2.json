@@ -1,0 +1,10 @@
+{
+  "allocation": [
+    {"channel": "x", "share_pct": 55, "daily_eur": 20, "objective": "waitlist signups, numbered hooks"},
+    {"channel": "instagram", "share_pct": 40, "daily_eur": 14, "objective": "story posts with a hard CTA"},
+    {"channel": "linkedin", "share_pct": 5, "daily_eur": 2, "objective": "keep-alive only"}
+  ],
+  "expected_cpa_eur": 3.2,
+  "rationale": "Day 1 showed X converting at the lowest cost per signup and LinkedIn at the highest. Money moves to X and Instagram; LinkedIn drops to a keep-alive budget until a post there earns it back.",
+  "message_to_team": "Board, budget moved: X to 55 percent, Instagram 40, LinkedIn cut to 5. Mei's numbers said X converts cheapest; I expect cost per signup to fall toward EUR 3.20."
+}

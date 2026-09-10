@@ -7,3 +7,4 @@ ghost.db-wal
 ghost.db-shm
 tests/_smoke.db*
 .pytest_cache/
+media/

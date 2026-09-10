@@ -1,0 +1,14 @@
+{
+  "replies": [
+    {"comment_id": "K1", "reply": "Same here, honestly. That is exactly why we built this. Waitlist link is in the bio."},
+    {"comment_id": "K2", "reply": "Amsterdam only for the launch, yes. Other cities once we have stopped being surprised by how many lights get stolen here."},
+    {"comment_id": "K3", "reply": "Fair question. A set of decent lights is EUR 20-40 and lasts until someone takes it. We replace as often as needed, so it pays off after the first theft."},
+    {"comment_id": "K4", "reply": "Within 24 hours on working days, from a courier in the city. We will publish the numbers once we are live so you can hold us to it."},
+    {"comment_id": "K5", "reply": "Thank you! Tell the whole house, the waitlist is open."},
+    {"comment_id": "K6", "reply": "No catch: EUR 9 a month, cancel anytime, keep the lights you have. We make money if you stay because it just works."}
+  ],
+  "sentiment": {"positive": 3, "neutral": 2, "negative": 1},
+  "themes": ["price vs buying lights", "Amsterdam-only launch", "how fast is replacement really"],
+  "escalations": ["Several people ask how the 24h replacement works in practice; we should show the courier flow in a post."],
+  "message_to_team": "Mei, day-1 mood is mostly positive. Recurring questions: is EUR 9 worth it versus buying lights, and how fast replacement really is. One post explaining the courier flow would answer both. Board, no fires."
+}

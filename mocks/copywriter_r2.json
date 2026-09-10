@@ -1,7 +1,34 @@
 {
   "items": [
-    {"channel": "x", "headline": "4 sets of lights. 1 subscription. EUR 9.", "body": "The average Amsterdam cyclist we talked to lost 4 sets of lights last year. Nachtfiets replaces yours within 24h, free, for EUR 9 a month. October launch, waitlist open.", "cta": "Join the waitlist", "hashtags": ["#Nachtfiets", "#Amsterdam", "#fiets"], "rationale": "Implements Mei's recommendation to put a number in the headline: the numbered X post was the day-1 winner.", "risk_flags": ["unverified claim: 'average cyclist lost 4 sets'"]},
-    {"channel": "instagram", "headline": "24 hours. New lights. EUR 0.", "body": "Stolen on Monday night.\nNew pair in your mailbox Tuesday.\nThat is the whole product.\nNachtfiets, EUR 9 a month.", "cta": "Waitlist in bio", "hashtags": ["#Nachtfiets", "#Amsterdam", "#studentlife"], "rationale": "Implements Mei's recommendation: numbers up front, story format kept for Instagram.", "risk_flags": []}
+    {
+      "channel": "x",
+      "headline": "4 sets of lights. 1 subscription. EUR 9.",
+      "body": "The average Amsterdam cyclist we talked to lost 4 sets of lights last year. Nachtfiets replaces yours within 24h, free, for EUR 9 a month. October launch, waitlist open.",
+      "cta": "Join the waitlist",
+      "hashtags": [
+        "#Nachtfiets",
+        "#Amsterdam",
+        "#fiets"
+      ],
+      "rationale": "Implements Mei's recommendation to put a number in the headline: the numbered X post was the day-1 winner.",
+      "risk_flags": [
+        "unverified claim: 'average cyclist lost 4 sets'"
+      ]
+    },
+    {
+      "channel": "instagram",
+      "headline": "24 hours. New lights. EUR 0.",
+      "body": "Stolen on Monday night.\nNew pair in your mailbox Tuesday.\nThat is the whole product.\nNachtfiets, EUR 9 a month.",
+      "cta": "Waitlist in bio",
+      "hashtags": [
+        "#Nachtfiets",
+        "#Amsterdam",
+        "#studentlife"
+      ],
+      "rationale": "Implements Mei's recommendation: numbers up front, story format kept for Instagram.",
+      "risk_flags": []
+    }
   ],
-  "message_to_team": "Board, round two: two posts rewritten on Mei's findings, both lead with a number. The X post carries a figure I could not verify, flagged. Kofi, two new posters."
+  "message_to_team": "Board, round two: two posts rewritten on Mei's findings, both lead with a number. The X post carries a figure I could not verify, flagged. Kofi, two new posters.",
+  "question_for_colleague": null
 }

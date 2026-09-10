@@ -25,12 +25,23 @@ JSON_COLUMNS = {
     "content": {"hashtags", "risk_flags"},
     "assets": {"spec"},
     "agents": {"output_schema"},
+    "videos": {"spec"},
+    "ad_plans": {"allocation"},
+    "reports": {"body"},
 }
+
+# columns added after the first release; applied to existing databases on connect
+MIGRATIONS = [
+    ("content", "compliance_verdict", "TEXT"), ("content", "compliance_note", "TEXT"),
+    ("metrics", "paid_impressions", "INTEGER DEFAULT 0"), ("metrics", "ad_spend_eur", "REAL DEFAULT 0"),
+    ("agents", "hired", "INTEGER DEFAULT 0"), ("agents", "color", "TEXT"),
+    ("company", "pace_seconds", "REAL DEFAULT 6"),
+]
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS company (
   id TEXT PRIMARY KEY, name TEXT, paused INTEGER DEFAULT 0,
-  budget_eur REAL DEFAULT 5.0, spent_eur REAL DEFAULT 0.0,
+  budget_eur REAL DEFAULT 5.0, spent_eur REAL DEFAULT 0.0, pace_seconds REAL DEFAULT 6,
   created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS agents (
@@ -38,6 +49,7 @@ CREATE TABLE IF NOT EXISTS agents (
   system_prompt TEXT, output_schema TEXT,
   status TEXT DEFAULT 'idle', current_task_id TEXT,
   tokens_in INTEGER DEFAULT 0, tokens_out INTEGER DEFAULT 0, cost_eur REAL DEFAULT 0.0,
+  hired INTEGER DEFAULT 0, color TEXT,
   created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS briefs (
@@ -62,6 +74,7 @@ CREATE TABLE IF NOT EXISTS content (
   headline TEXT, body TEXT, cta TEXT, hashtags TEXT, rationale TEXT,
   risk_flags TEXT, status TEXT DEFAULT 'draft', asset_id TEXT,
   published_at TEXT, publish_slot TEXT, round INTEGER DEFAULT 1,
+  compliance_verdict TEXT, compliance_note TEXT,
   created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS assets (
@@ -71,7 +84,26 @@ CREATE TABLE IF NOT EXISTS assets (
 CREATE TABLE IF NOT EXISTS metrics (
   id TEXT PRIMARY KEY, content_id TEXT, brief_id TEXT, day INTEGER,
   impressions INTEGER, clicks INTEGER, likes INTEGER, shares INTEGER,
-  signups INTEGER, ctr REAL, created_at TEXT, updated_at TEXT
+  signups INTEGER, ctr REAL, paid_impressions INTEGER DEFAULT 0, ad_spend_eur REAL DEFAULT 0,
+  created_at TEXT, updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS videos (
+  id TEXT PRIMARY KEY, brief_id TEXT, task_id TEXT, title TEXT, spec TEXT, caption TEXT,
+  status TEXT DEFAULT 'storyboard', path TEXT, duration_s REAL, error TEXT,
+  created_at TEXT, updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS comments (
+  id TEXT PRIMARY KEY, brief_id TEXT, content_id TEXT, day INTEGER, label TEXT,
+  author TEXT, channel TEXT, text TEXT, mood TEXT, reply TEXT, replied_at TEXT,
+  created_at TEXT, updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS ad_plans (
+  id TEXT PRIMARY KEY, brief_id TEXT, task_id TEXT, round INTEGER, allocation TEXT,
+  expected_cpa_eur REAL, rationale TEXT, created_at TEXT, updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY, brief_id TEXT, task_id TEXT, round INTEGER, day INTEGER,
+  headline TEXT, body TEXT, created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS approvals (
   id TEXT PRIMARY KEY, content_id TEXT, requested_by TEXT,
@@ -101,6 +133,10 @@ def connect() -> sqlite3.Connection:
             _conn.execute("PRAGMA journal_mode=WAL")
             _conn.execute("PRAGMA synchronous=NORMAL")
             _conn.executescript(SCHEMA)
+            for table, col, decl in MIGRATIONS:
+                cols = {r[1] for r in _conn.execute(f"PRAGMA table_info({table})")}
+                if col not in cols:
+                    _conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
         return _conn
 
 
@@ -215,7 +251,8 @@ def seed_company(name: str, budget_eur: float) -> None:
         row = conn.execute("SELECT id FROM company LIMIT 1").fetchone()
     if row is None:
         insert("company", {"id": "company", "name": name, "paused": 0,
-                           "budget_eur": budget_eur, "spent_eur": 0.0})
+                           "budget_eur": budget_eur, "spent_eur": 0.0,
+                           "pace_seconds": float(os.environ.get("PACE_SECONDS", "6"))})
     else:
         update("company", "company", {"budget_eur": budget_eur})
 
@@ -239,7 +276,9 @@ def seed_agents(agents: dict[str, dict[str, Any]]) -> None:
 def reset_all() -> None:
     """Wipe campaign data; keep agents and company defaults."""
     with tx() as conn:
-        for t in ("briefs", "tasks", "messages", "content", "assets", "metrics", "approvals", "spend"):
+        for t in ("briefs", "tasks", "messages", "content", "assets", "metrics", "approvals", "spend",
+                  "videos", "comments", "ad_plans", "reports"):
             conn.execute(f"DELETE FROM {t}")
+        conn.execute("DELETE FROM agents WHERE hired = 1")
         conn.execute("UPDATE agents SET status='idle', current_task_id=NULL, tokens_in=0, tokens_out=0, cost_eur=0, updated_at=?", [now()])
         conn.execute("UPDATE company SET paused=0, spent_eur=0, updated_at=?", [now()])

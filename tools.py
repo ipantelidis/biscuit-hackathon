@@ -37,7 +37,10 @@ def _mock_llm(agent_key: str, variant: str | None) -> tuple[str, int, int]:
     candidates = []
     if variant:
         candidates.append(MOCK_DIR / f"{agent_key}_{variant}.json")
+        if variant in ("answer", "standup", "board_report", "revise"):  # mode: generic file beats the agent's own
+            candidates.append(MOCK_DIR / f"{variant}.json")
     candidates.append(MOCK_DIR / f"{agent_key}.json")
+    candidates.append(MOCK_DIR / "specialist.json")  # hired agents with dynamic keys
     for path in candidates:
         if path.exists():
             text = path.read_text(encoding="utf-8")
@@ -265,3 +268,158 @@ def simulate_metrics(brief_id: str, day: int, published: list[dict]) -> list[dic
                      "shares": shares, "signups": signups,
                      "ctr": round(clicks / impressions, 4) if impressions else 0.0})
     return rows
+
+
+# ------------------------------------------------------------------ paid media in metrics
+
+CPM_EUR = {"x": 6.0, "linkedin": 14.0, "instagram": 8.0}
+
+
+def apply_paid_media(rows: list[dict], published: list[dict], allocation: list[dict] | None,
+                     seed_key: str) -> list[dict]:
+    """Add paid impressions and spend from an ad plan to a day's organic metric rows (in place)."""
+    if not allocation:
+        for r in rows:
+            r["paid_impressions"], r["ad_spend_eur"] = 0, 0.0
+        return rows
+    rng = random.Random(int(hashlib.sha256(f"paid:{seed_key}".encode()).hexdigest(), 16) % (2**32))
+    by_channel: dict[str, list[dict]] = {}
+    for r in rows:
+        c = next((p for p in published if p["id"] == r["content_id"]), None)
+        if c:
+            by_channel.setdefault(c["channel"], []).append(r)
+    for r in rows:
+        r["paid_impressions"], r["ad_spend_eur"] = 0, 0.0
+    for a in allocation:
+        posts = by_channel.get(a["channel"])
+        daily = float(a.get("daily_eur") or 0)
+        if not posts or daily <= 0:
+            continue
+        share = daily / len(posts)
+        for r in posts:
+            paid = int(share / CPM_EUR.get(a["channel"], 8.0) * 1000 * rng.uniform(0.85, 1.15))
+            organic_ctr = r["clicks"] / r["impressions"] if r["impressions"] else 0.02
+            paid_clicks = int(paid * organic_ctr * 0.7)
+            r["paid_impressions"] = paid
+            r["ad_spend_eur"] = round(share, 2)
+            r["impressions"] += paid
+            r["clicks"] += paid_clicks
+            r["signups"] += int(paid_clicks * rng.uniform(0.08, 0.2))
+            r["ctr"] = round(r["clicks"] / r["impressions"], 4) if r["impressions"] else 0.0
+    return rows
+
+
+# ------------------------------------------------------------------ audience comments
+
+_AUTHORS = ["Sanne", "Daan", "Femke", "Joris", "Lotte", "Bram_020", "Noor", "Thijs", "Eva", "Ruben", "Isa", "Kai"]
+_COMMENTS = {
+    "positive": ["Finally. Lost mine twice this month.", "Ok this is actually clever", "Signed up, this is exactly my problem",
+                 "Sharing this with my whole student house", "The tone of this account is perfect lol", "Take my money"],
+    "neutral": ["Is this Amsterdam only?", "How fast is the replacement really?", "Do the lights fit a bakfiets?",
+                "What happens if I cancel after they replace them?", "Can I get this for my kid's bike too?",
+                "When exactly is the launch?"],
+    "negative": ["{price} a month for lights? I can buy 3 sets for that", "Feels like a subscription for something that should just work",
+                 "Sounds too good, what is the catch", "Another subscription, no thanks", "Replaced within 24h? I doubt it"],
+}
+
+
+def simulate_comments(brief: dict, day: int, published: list[dict], per_post: int = 2) -> list[dict]:
+    """Deterministic audience comments for a day; mood skews by each post's engagement rank."""
+    if not published:
+        return []
+    rng = random.Random(int(hashlib.sha256(f"comments:{brief['id']}:{day}".encode()).hexdigest(), 16) % (2**32))
+    price = "€9"
+    for tok in (brief.get("one_liner") or "").split():
+        if "€" in tok or tok.lower().startswith("eur"):
+            price = tok.strip(".,")
+            break
+    out, n = [], 0
+    for c in published:
+        for _ in range(per_post):
+            mood = rng.choices(["positive", "neutral", "negative"], weights=[5, 4, 3])[0]
+            text = rng.choice(_COMMENTS[mood]).format(price=price)
+            n += 1
+            out.append({"brief_id": brief["id"], "content_id": c["id"], "day": day, "label": f"K{n}",
+                        "author": rng.choice(_AUTHORS), "channel": c["channel"], "text": text, "mood": mood})
+    return out
+
+
+# ------------------------------------------------------------------ motion (video)
+
+def render_motion_html(spec: dict, product_name: str = "", loop: bool = True) -> str:
+    """Storyboard spec -> self-contained animated HTML (720x720). Pure CSS, no JS, never fails."""
+    scenes = list(spec.get("scenes") or [])
+    if not scenes:
+        scenes = [{"text": product_name or "Ghost Agency", "subtext": "", "glyph": "", "bg": "#0b0d12",
+                   "fg": "#ffffff", "accent": "#c6ff4a", "seconds": 3, "style": "punch"}]
+    scenes = scenes + [{"text": product_name or spec.get("title") or "Ghost Agency", "subtext": "Produced by Ghost Agency",
+                        "glyph": "", "bg": "#07090d", "fg": "#ffffff", "accent": "#c6ff4a", "seconds": 2.5, "style": "calm"}]
+    total = sum(float(s.get("seconds") or 3) for s in scenes)
+    css, divs, t = [], [], 0.0
+    for i, s in enumerate(scenes):
+        dur = float(s.get("seconds") or 3)
+        a, b = t / total * 100, (t + dur) / total * 100
+        t += dur
+        bg, fg, ac = _hex(s.get("bg", ""), "#0b0d12"), _hex(s.get("fg", ""), "#ffffff"), _hex(s.get("accent", ""), "#c6ff4a")
+        style = s.get("style") if s.get("style") in ("punch", "calm", "split") else "punch"
+        fade = 0.6 if style == "calm" else 0.15
+        fa = min(b, a + fade / total * 100)
+        fb = max(fa, b - fade / total * 100)
+        css.append(f".s{i}{{animation:sh{i} {total}s {'infinite' if loop else '1'} both;background:{bg};color:{fg}}}"
+                   f".s{i} .ac{{background:{ac}}}.s{i} .g{{color:{ac}}}"
+                   f"@keyframes sh{i}{{0%,{a:.3f}%{{opacity:0;visibility:hidden}}{fa:.3f}%{{opacity:1;visibility:visible}}"
+                   f"{fb:.3f}%{{opacity:1;visibility:visible}}{b:.3f}%,100%{{opacity:0;visibility:hidden}}}}"
+                   f".s{i} .txt{{animation:tx{i} {total}s {'infinite' if loop else '1'} both}}"
+                   f"@keyframes tx{i}{{0%,{a:.3f}%{{transform:translateY({'22px' if style == 'punch' else '8px'}) scale({'.92' if style == 'punch' else '1'})}}"
+                   f"{fa:.3f}%,100%{{transform:none}}}}")
+        glyph = html.escape(str(s.get("glyph") or "")[:2])
+        text = html.escape(str(s.get("text") or ""))
+        sub = html.escape(str(s.get("subtext") or ""))
+        if style == "split":
+            divs.append(f'<div class="sc s{i} split"><div class="half ac"><div class="g big">{glyph}</div></div>'
+                        f'<div class="half"><div class="txt"><div class="t">{text}</div><div class="u">{sub}</div></div></div></div>')
+        else:
+            divs.append(f'<div class="sc s{i}"><div class="bar ac"></div>{"<div class=g>" + glyph + "</div>" if glyph else ""}'
+                        f'<div class="txt"><div class="t">{text}</div><div class="u">{sub}</div></div>'
+                        f'<div class="pn">{html.escape(product_name)}</div></div>')
+    return f"""<!doctype html><html><head><meta charset="utf-8"><title>{html.escape(spec.get('title') or 'Ghost Agency')}</title>
+<style>
+html,body{{margin:0;background:#000;width:720px;height:720px;overflow:hidden;font-family:"Space Grotesk","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif}}
+.sc{{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:56px;box-sizing:border-box}}
+.bar{{position:absolute;left:56px;top:56px;width:72px;height:10px}}
+.g{{position:absolute;right:56px;top:44px;font-size:120px;line-height:1}}
+.t{{font-size:72px;font-weight:700;line-height:.98;letter-spacing:-.03em;word-wrap:break-word}}
+.u{{font-size:26px;margin-top:18px;opacity:.85;line-height:1.3}}
+.pn{{position:absolute;left:56px;bottom:22px;font-size:16px;opacity:.55}}
+.split{{flex-direction:row;padding:0}}.split .half{{flex:1;display:flex;align-items:center;justify-content:center;padding:48px;box-sizing:border-box}}
+.split .big{{position:static;font-size:200px}}.split .txt .t{{font-size:60px}}
+{''.join(css)}
+</style></head><body>{''.join(divs)}</body></html>"""
+
+
+def motion_duration(spec: dict) -> float:
+    return sum(float(s.get("seconds") or 3) for s in (spec.get("scenes") or [])) + 2.5
+
+
+def record_motion_video(html_path: str, seconds: float, out_path: str) -> str:
+    """Record the animation with Chromium (Playwright) to a WebM file. Raises on failure."""
+    import shutil
+    import tempfile
+    from playwright.sync_api import sync_playwright
+
+    tmp = tempfile.mkdtemp(prefix="ghost-video-")
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        ctx = browser.new_context(viewport={"width": 720, "height": 720},
+                                  record_video_dir=tmp, record_video_size={"width": 720, "height": 720})
+        page = ctx.new_page()
+        page.goto("file://" + os.path.abspath(html_path))
+        page.wait_for_timeout(int(seconds * 1000) + 400)
+        video = page.video
+        ctx.close()
+        browser.close()
+        src = video.path()
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    shutil.move(src, out_path)
+    shutil.rmtree(tmp, ignore_errors=True)
+    return out_path

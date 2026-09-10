@@ -1,16 +1,41 @@
 {
   "positioning": "Nachtfiets is the end of buying bike lights: EUR 9 a month and you never ride dark again, even after a theft.",
-  "key_messages": ["Stolen? Replaced within 24 hours, free", "EUR 9 a month beats a EUR 60 fine", "Never buy bike lights again"],
+  "key_messages": [
+    "Stolen? Replaced within 24 hours, free",
+    "EUR 9 a month beats a EUR 60 fine",
+    "Never buy bike lights again"
+  ],
   "channels": [
-    {"channel": "x", "role": "Lead channel: numbers and theft stories", "cadence": "daily"},
-    {"channel": "instagram", "role": "Cheeky awareness for students", "cadence": "3 posts per week"},
-    {"channel": "linkedin", "role": "Reduced: one credibility post per week", "cadence": "weekly"}
+    {
+      "channel": "x",
+      "role": "Lead channel: numbers and theft stories",
+      "cadence": "daily"
+    },
+    {
+      "channel": "instagram",
+      "role": "Cheeky awareness for students",
+      "cadence": "3 posts per week"
+    },
+    {
+      "channel": "linkedin",
+      "role": "Reduced: one credibility post per week",
+      "cadence": "weekly"
+    }
   ],
   "two_week_plan": [
-    {"week": 1, "focus": "Numbers-led hooks: fines, replacements, price", "posts": 6},
-    {"week": 2, "focus": "Theft stories from the waitlist", "posts": 5}
+    {
+      "week": 1,
+      "focus": "Numbers-led hooks: fines, replacements, price",
+      "posts": 6
+    },
+    {
+      "week": 2,
+      "focus": "Theft stories from the waitlist",
+      "posts": 5
+    }
   ],
   "success_metric": "300 waitlist signups by day 14, tracked from campaign page clicks",
   "changes_from_previous_round": "Mei found the numbered X headline drove the highest CTR while the LinkedIn story post underperformed. X becomes the lead channel, every headline carries a number, and LinkedIn drops to one post a week.",
-  "message_to_team": "Lena, revision based on Mei's report: numbers in every headline, X leads, LinkedIn goes to weekly. Write two new posts that put a figure up front."
+  "message_to_team": "Lena, revision based on Mei's report: numbers in every headline, X leads, LinkedIn goes to weekly. Write two new posts that put a figure up front.",
+  "question_for_colleague": null
 }

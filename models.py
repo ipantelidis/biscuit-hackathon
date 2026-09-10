@@ -1,4 +1,4 @@
-"""Pydantic output models, one per agent. Validation of every LLM result."""
+"""Pydantic output models, one per agent and per mode. Validation of every LLM result."""
 from __future__ import annotations
 
 from typing import Literal
@@ -16,6 +16,12 @@ class _Out(BaseModel):
         return v.strip()[:280]
 
 
+class Question(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    agent: str
+    question: str = Field(..., min_length=3)
+
+
 class CeoTask(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
@@ -25,10 +31,20 @@ class CeoTask(BaseModel):
     depends_on: list[str] = Field(default_factory=list)
 
 
+class Hire(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    key: str = Field(..., pattern=r"^[a-z][a-z0-9_]{1,30}$")
+    name: str
+    role: str
+    why: str = ""
+    brief: str = ""
+
+
 class CeoOut(_Out):
     campaign_name: str
     objective: str
     tasks: list[CeoTask] = Field(..., min_length=1)
+    hires: list[Hire] = Field(default_factory=list)
     escalations: list[str] = Field(default_factory=list)
 
 
@@ -77,6 +93,7 @@ class StrategistOut(_Out):
     two_week_plan: list[WeekPlan] = Field(default_factory=list)
     success_metric: str = ""
     changes_from_previous_round: str | None = ""
+    question_for_colleague: Question | None = None
 
 
 class ContentItem(BaseModel):
@@ -97,6 +114,20 @@ class ContentItem(BaseModel):
 
 class CopywriterOut(_Out):
     items: list[ContentItem] = Field(..., min_length=1)
+    question_for_colleague: Question | None = None
+
+
+class Review(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    content_index: int
+    verdict: Literal["clear", "revise", "block"]
+    issues: list[str] = Field(default_factory=list)
+    note: str = ""
+
+
+class ComplianceOut(_Out):
+    reviews: list[Review] = Field(default_factory=list)
+    summary: str = ""
 
 
 class Palette(BaseModel):
@@ -134,11 +165,68 @@ class PublisherOut(_Out):
     schedule: list[ScheduleSlot] = Field(default_factory=list)
 
 
+class Scene(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    text: str = Field(..., min_length=1)
+    subtext: str = ""
+    glyph: str = ""
+    bg: str = "#0b0d12"
+    fg: str = "#ffffff"
+    accent: str = "#c6ff4a"
+    seconds: float = 3.0
+    style: Literal["punch", "calm", "split"] = "punch"
+
+    @field_validator("seconds")
+    @classmethod
+    def _clamp(cls, v: float) -> float:
+        return max(1.5, min(5.0, float(v)))
+
+
+class MotionOut(_Out):
+    title: str
+    scenes: list[Scene] = Field(..., min_length=2, max_length=8)
+    caption: str = ""
+
+
+class Allocation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    channel: Literal["instagram", "linkedin", "x"]
+    share_pct: int = 0
+    daily_eur: float = 0.0
+    objective: str = ""
+
+
+class PaidMediaOut(_Out):
+    allocation: list[Allocation] = Field(..., min_length=1)
+    expected_cpa_eur: float = 0.0
+    rationale: str = ""
+
+
+class Reply(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    comment_id: str
+    reply: str
+
+
+class Sentiment(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    positive: int = 0
+    neutral: int = 0
+    negative: int = 0
+
+
+class CommunityOut(_Out):
+    replies: list[Reply] = Field(default_factory=list)
+    sentiment: Sentiment = Field(default_factory=Sentiment)
+    themes: list[str] = Field(default_factory=list)
+    escalations: list[str] = Field(default_factory=list)
+
+
 class Recommendation(BaseModel):
     model_config = ConfigDict(extra="ignore")
     action: str
     why: str = ""
-    target_agent: Literal["strategist", "copywriter"] = "strategist"
+    target_agent: Literal["strategist", "copywriter", "paid_media"] = "strategist"
 
 
 class AnalystOut(_Out):
@@ -155,18 +243,48 @@ class CfoOut(_Out):
     action: Literal["continue", "pause", "reduce_scope"] = "continue"
 
 
+class SpecialistOut(_Out):
+    deliverable: str
+    notes_for_copywriter: list[str] = Field(default_factory=list)
+
+
+class AnswerOut(_Out):
+    answer: str
+
+
+class StandupLine(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    agent: str
+    line: str
+
+
+class StandupOut(_Out):
+    updates: list[StandupLine] = Field(default_factory=list)
+
+
+class BoardReportOut(_Out):
+    headline: str
+    shipped: list[str] = Field(default_factory=list)
+    learned: list[str] = Field(default_factory=list)
+    spend_line: str = ""
+    next: list[str] = Field(default_factory=list)
+    risks: list[str] = Field(default_factory=list)
+
+
 MODELS: dict[str, type[_Out]] = {
-    "ceo": CeoOut,
-    "researcher": ResearcherOut,
-    "strategist": StrategistOut,
-    "copywriter": CopywriterOut,
-    "designer": DesignerOut,
-    "publisher": PublisherOut,
-    "analyst": AnalystOut,
-    "cfo": CfoOut,
+    "ceo": CeoOut, "researcher": ResearcherOut, "strategist": StrategistOut, "copywriter": CopywriterOut,
+    "compliance": ComplianceOut, "designer": DesignerOut, "publisher": PublisherOut, "motion": MotionOut,
+    "paid_media": PaidMediaOut, "community": CommunityOut, "analyst": AnalystOut, "cfo": CfoOut,
+}
+MODE_MODELS: dict[str, type[_Out]] = {
+    "answer": AnswerOut, "standup": StandupOut, "board_report": BoardReportOut, "revise": CopywriterOut,
 }
 
 
-def validate(agent_key: str, data: dict) -> dict:
+def validate(agent_key: str, data: dict, mode: str | None = None) -> dict:
     """Validate and normalise; raises pydantic.ValidationError with a readable message."""
-    return MODELS[agent_key].model_validate(data).model_dump()
+    if mode:
+        model = MODE_MODELS[mode]
+    else:
+        model = MODELS.get(agent_key, SpecialistOut)
+    return model.model_validate(data).model_dump()

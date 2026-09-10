@@ -1,0 +1,17 @@
+{
+  "updates": [
+    {"agent": "ceo", "line": "Day one in the books. Watching signups per euro, not likes."},
+    {"agent": "researcher", "line": "Standing by; if Mei sees a channel surprise I will dig into why."},
+    {"agent": "strategist", "line": "Waiting on Mei's numbers. My bet: the numbered headline wins and I will restructure around it."},
+    {"agent": "copywriter", "line": "Three posts live, one rewrite for Sofia. Ready to write round two the moment Bram revises."},
+    {"agent": "compliance", "line": "Cleared everything for launch. Keeping an eye on any figures we put in ads."},
+    {"agent": "designer", "line": "Posters held up on phone screens. Round two will get one fresh layout."},
+    {"agent": "publisher", "line": "Campaign page is live and the video is at the top. Scheduling round two when the board approves."},
+    {"agent": "motion", "line": "Video rendered at 15 seconds. Happy to cut a 6-second version for X if it performs."},
+    {"agent": "paid_media", "line": "EUR 36 a day is running. I will move money after the first report."},
+    {"agent": "community", "line": "Replying to the day-one comments now; the price question keeps coming up."},
+    {"agent": "analyst", "line": "Pulling day-one numbers; report in a few minutes."},
+    {"agent": "cfo", "line": "Spend is well inside budget. No concerns."}
+  ],
+  "message_to_team": "Standup done. Everyone knows the play: Mei reports, Bram revises, Lena writes, board approves. Keep it tight."
+}

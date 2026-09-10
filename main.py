@@ -60,6 +60,12 @@ def campaign_page(brief_id: str, request: Request):
         raise HTTPException(404, "no such campaign")
     posts = db.query("content", "brief_id = ? AND status = 'published'", [brief_id],
                      order="round ASC, published_at ASC")
+    videos = db.query("videos", "brief_id = ?", [brief_id], order="created_at DESC", limit=1)
+    video = videos[0] if videos else None
+    comments = db.query("comments", "brief_id = ? AND reply IS NOT NULL", [brief_id], order="created_at DESC", limit=6)
+    post_titles = {p["id"]: p["headline"] for p in posts}
+    for c in comments:
+        c["on_post"] = post_titles.get(c["content_id"], "")
     for p in posts:
         ms = db.query("metrics", "content_id = ?", [p["id"]])
         if ms:
@@ -71,7 +77,25 @@ def campaign_page(brief_id: str, request: Request):
         else:
             p["metrics"] = None
     return templates.TemplateResponse(request, "campaign.html",
-                                      {"brief": brief, "posts": posts, "day": brief.get("day") or 0})
+                                      {"brief": brief, "posts": posts, "day": brief.get("day") or 0,
+                                       "video": video, "comments": comments})
+
+
+@app.get("/motion/{brief_id}", response_class=HTMLResponse, include_in_schema=False)
+def motion_page(brief_id: str, loop: int = 1):
+    videos = db.query("videos", "brief_id = ?", [brief_id], order="created_at DESC", limit=1)
+    if not videos:
+        raise HTTPException(404, "no storyboard yet")
+    brief = db.get("briefs", brief_id)
+    return HTMLResponse(tools.render_motion_html(videos[0]["spec"], brief["product_name"] if brief else "", loop=bool(loop)))
+
+
+@app.get("/api/videos/{video_id}.webm", include_in_schema=False)
+def video_file(video_id: str):
+    v = db.get("videos", video_id)
+    if not v or v.get("status") != "ready" or not v.get("path") or not Path(v["path"]).exists():
+        raise HTTPException(404, "video not ready")
+    return FileResponse(v["path"], media_type="video/webm")
 
 
 @app.get("/api/content/{content_id}/asset.svg", include_in_schema=False)
@@ -115,7 +139,16 @@ def state():
         a["current_task_title"] = t["title"] if t else None
     for t in tasks:
         t.pop("output", None)
+        t["mode"] = (t.get("input") or {}).get("mode")
         t.pop("input", None)
+    videos = db.query("videos", "brief_id = ?", [brief_id], order="created_at DESC", limit=1) if brief_id else []
+    comments = db.query("comments", "brief_id = ?", [brief_id], order="created_at DESC", limit=40) if brief_id else []
+    titles = {x["id"]: x["headline"] for x in content}
+    for cm in comments:
+        cm["on_post"] = titles.get(cm["content_id"], "")
+    ad_plans = db.query("ad_plans", "brief_id = ?", [brief_id], order="created_at DESC", limit=1) if brief_id else []
+    reports = db.query("reports", "brief_id = ?", [brief_id], order="created_at DESC", limit=1) if brief_id else []
+    ad_spend = round(sum(m["ad_spend_eur"] or 0 for m in metrics), 2)
     return {
         "company": c,
         "mock": {"llm": tools.env_flag("MOCK_LLM"), "search": tools.env_flag("MOCK_SEARCH")},
@@ -129,6 +162,11 @@ def state():
         "spend": {"spent_eur": c["spent_eur"], "budget_eur": c["budget_eur"],
                   "by_agent": {a["key"]: a["cost_eur"] for a in agents}},
         "metrics": by_content,
+        "video": videos[0] if videos else None,
+        "comments": list(reversed(comments)),
+        "ad_plan": ad_plans[0] if ad_plans else None,
+        "ad_spend_eur": ad_spend,
+        "report": reports[0] if reports else None,
     }
 
 
@@ -201,14 +239,23 @@ def simulate_day(brief_id: str):
     if db.query("tasks", "brief_id = ? AND agent_key = 'analyst' AND status IN ('ready','running')", [brief_id]):
         raise HTTPException(409, "analyst is already working on the last day")
     day = (brief.get("day") or 0) + 1
-    for row in tools.simulate_metrics(brief_id, day, published):
+    plans = db.query("ad_plans", "brief_id = ?", [brief_id], order="created_at DESC", limit=1)
+    rows = tools.simulate_metrics(brief_id, day, published)
+    tools.apply_paid_media(rows, published, plans[0]["allocation"] if plans else None, f"{brief_id}:{day}")
+    for row in rows:
         db.insert("metrics", row)
+    for cm in tools.simulate_comments(brief, day, published):
+        db.insert("comments", cm)
     db.update("briefs", brief_id, {"day": day})
+    rnd = runtime._current_round(brief_id)
+    runtime.post_message(brief_id, "board", "all", "status",
+                         f"Day {day} is over. Iris, run the standup. Pim, the comments are in. Mei, tell us what happened.")
+    db.insert("tasks", {"brief_id": brief_id, "agent_key": "ceo", "title": f"Day {day} standup",
+                        "input": {"mode": "standup", "day": day}, "depends_on": [], "status": "ready", "round": rnd})
+    cm_id = db.insert("tasks", {"brief_id": brief_id, "agent_key": "community", "title": f"Reply to day {day} comments",
+                                "input": {"day": day}, "depends_on": [], "status": "ready", "round": rnd})
     db.insert("tasks", {"brief_id": brief_id, "agent_key": "analyst", "title": f"Analyse day {day} results",
-                        "input": {"day": day}, "depends_on": [], "status": "ready",
-                        "round": runtime._current_round(brief_id)})
-    runtime.post_message(brief_id, "board", "analyst", "status",
-                         f"Day {day} is over. Mei, the numbers are in; tell us what happened.")
+                        "input": {"day": day}, "depends_on": [cm_id], "status": "blocked", "round": rnd})
     return {"ok": True, "day": day, "content": len(published)}
 
 
@@ -217,6 +264,16 @@ def pause():
     if not runtime.company()["paused"]:
         runtime.pause_company("Board paused the company. All agents stop after their current call.")
     return {"ok": True, "paused": True}
+
+
+class Pace(BaseModel):
+    seconds: float = Field(..., ge=0, le=60)
+
+
+@app.post("/api/company/pace")
+def set_pace(p: Pace):
+    db.update("company", "company", {"pace_seconds": p.seconds})
+    return {"ok": True, "pace_seconds": p.seconds}
 
 
 @app.post("/api/company/resume")
@@ -242,6 +299,11 @@ def retry(task_id: str):
 @app.post("/api/reset")
 def reset():
     db.reset_all()
+    for f in runtime.MEDIA_DIR.glob("*"):
+        try:
+            f.unlink()
+        except OSError:
+            pass
     return {"ok": True}
 
 

@@ -23,6 +23,18 @@
   .intro { font-size:clamp(17px,2vw,21px); color:rgba(255,255,255,.72); max-width:640px; margin:0 0 30px; }
   .cta { display:inline-block; background:var(--acc); color:#0b1200; font-weight:700; padding:14px 22px; border-radius:12px; text-decoration:none; box-shadow:0 0 40px rgba(198,255,74,.35); }
   .stats { display:flex; gap:28px; margin-top:44px; flex-wrap:wrap; }
+  .hero .wrap { display:grid; grid-template-columns:1.25fr 1fr; gap:40px; align-items:center; }
+  .hero .wrap > * { min-width:0; }
+  .film { position:relative; aspect-ratio:1/1; border-radius:18px; overflow:hidden; border:1px solid rgba(255,255,255,.15); box-shadow:0 30px 80px rgba(0,0,0,.6); background:#000; }
+  .film video, .film iframe { width:100%; height:100%; display:block; border:0; object-fit:cover; }
+  .film .cap { position:absolute; left:12px; bottom:12px; display:flex; gap:6px; }
+  @media (max-width:900px) { .hero .wrap { grid-template-columns:1fr; } }
+  .voices { padding:8px 24px 48px; }
+  .voices .grid { grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:16px; }
+  .vc { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; font-size:14px; }
+  .vc .a { font-size:12px; color:var(--ink-2); margin-bottom:4px; font-family:var(--mono); }
+  .vc .r { margin-top:8px; padding:8px 10px; background:#f1f7e8; border-left:2px solid #7ac043; border-radius:0 8px 8px 0; font-size:13px; }
+  .vc .r b { color:#3b7a12; }
   .stat .v { font-family:var(--mono); font-size:26px; font-weight:500; }
   .stat .l { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:rgba(255,255,255,.5); }
 
@@ -59,6 +71,7 @@
 </head>
 <body>
 <div class="hero"><div class="wrap">
+  <div>
   <div class="eyebrow">
     <span class="chip acc live">{{ 'live' if brief.status in ('live','iterating') else brief.status }}</span>
     <span class="chip">{{ brief.product_name }}</span>
@@ -77,6 +90,14 @@
     <div class="stat"><div class="v">{{ total_sign }}</div><div class="l">signups</div></div>{% endif %}
     <div class="stat"><div class="v">0</div><div class="l">humans employed</div></div>
   </div>
+  </div>
+  {% if video %}
+  <div class="film">
+    {% if video.status == 'ready' %}<video src="/api/videos/{{ video.id }}.webm" autoplay muted loop playsinline></video>
+    {% else %}<iframe src="/motion/{{ brief.id }}?loop=1" title="{{ video.title }}"></iframe>{% endif %}
+    <div class="cap"><span class="chip acc">{{ video.title }}</span><span class="chip">{{ video.duration_s | round | int }}s</span></div>
+  </div>
+  {% endif %}
 </div></div>
 
 <section class="posts" id="posts"><div class="wrap">
@@ -104,6 +125,17 @@
   <div class="empty">Nothing published yet. The board is still reviewing.</div>
   {% endif %}
 </div></section>
+
+{% if comments %}
+<section class="voices"><div class="wrap">
+  <div class="sec-title"><h2>From the comments</h2><span style="color:var(--ink-2);font-size:13px">answered by Pim, community manager</span></div>
+  <div class="grid">
+    {% for c in comments %}
+    <div class="vc"><div class="a">{{ c.author }} · {{ c.channel }} · day {{ c.day }}</div>{{ c.text }}<div class="r"><b>{{ brief.product_name }}</b> · {{ c.reply }}</div></div>
+    {% endfor %}
+  </div>
+</div></section>
+{% endif %}
 
 <footer><div class="wrap">
   <div class="q">Produced by Ghost Agency. <em>No humans</em> were employed in the making of this campaign.</div>

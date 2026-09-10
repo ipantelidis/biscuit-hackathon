@@ -70,6 +70,8 @@
   .gauge .lbl { font-size:10px; color:var(--ink-3); letter-spacing:.1em; text-transform:uppercase; margin-top:3px; }
   .spacer { flex:1; }
   .hdr-actions { display:flex; gap:10px; align-items:center; }
+  .pace { display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+  .pace select { font:inherit; font-size:12px; letter-spacing:0; text-transform:none; color:var(--ink); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:7px 10px; }
   .kill { display:flex; align-items:center; gap:8px; }
   .kill .sw { width:36px; height:20px; border-radius:999px; background:rgba(255,255,255,.12); border:1px solid var(--line-2); position:relative; }
   .kill .sw::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--acc); box-shadow:0 0 8px var(--acc); transition:left .2s; }
@@ -84,6 +86,15 @@
   .panel > .body { flex:1; overflow:auto; padding:12px 14px; min-height:0; }
   .center { display:grid; grid-template-rows:auto 1fr auto; gap:14px; min-height:0; }
   .center .panel.flow > .body { overflow:visible; padding:6px 10px 0; }
+  .right { display:grid; grid-template-rows:1fr auto; gap:14px; min-height:0; }
+  .right .panel:last-child:not([hidden]) { max-height:42%; }
+  .cm { padding:8px 4px; border-bottom:1px dotted var(--line); font-size:12.5px; }
+  .cm .a { display:flex; gap:8px; align-items:center; font-size:11.5px; color:var(--ink-3); margin-bottom:2px; }
+  .cm .a b { color:var(--ink-2); }
+  .cm .r { margin-top:5px; padding:6px 10px; border-left:2px solid #b8ff9a; background:rgba(184,255,154,.06); border-radius:0 8px 8px 0; color:var(--ink-2); }
+  .cm .r b { color:#b8ff9a; font-weight:600; }
+  .mood { display:flex; height:6px; border-radius:4px; overflow:hidden; margin:0 0 8px; }
+  .mood i { display:block; height:100%; }
 
   /* ---------- staff ---------- */
   .agent { display:grid; grid-template-columns:44px 1fr; gap:12px; padding:10px 8px; border-radius:12px; border:1px solid transparent; transition:all .25s; align-items:center; }
@@ -105,7 +116,7 @@
   .blocked .state { background:var(--alert); color:#fff; }
 
   /* ---------- pipeline graph ---------- */
-  .flow svg { width:100%; height:170px; display:block; }
+  .flow svg { width:100%; height:180px; display:block; }
   .edge { fill:none; stroke:rgba(255,255,255,.12); stroke-width:2; }
   .edge.done { stroke:rgba(198,255,74,.55); }
   .edge.active { stroke:var(--acc); stroke-dasharray:6 8; animation:flow .7s linear infinite; filter:drop-shadow(0 0 6px var(--acc-glow)); }
@@ -120,7 +131,7 @@
   .node.waiting_human circle { stroke:var(--warn); stroke-dasharray:4 3; }
   .node.failed circle { stroke:var(--alert); fill:rgba(255,92,108,.2); }
   .node .halo { fill:none; stroke:var(--acc); stroke-width:2; opacity:0; }
-  @keyframes halo { 0% { r:22; opacity:.7; } 100% { r:36; opacity:0; } }
+  @keyframes halo { 0% { r:19; opacity:.7; } 100% { r:32; opacity:0; } }
   .node .ini { fill:var(--ink); font-weight:700; font-size:13px; text-anchor:middle; font-family:var(--ui); }
   .node .lbl { fill:var(--ink-2); font-size:11px; text-anchor:middle; font-family:var(--ui); }
   .node .sub { fill:var(--ink-3); font-size:10px; text-anchor:middle; font-family:var(--mono); }
@@ -141,12 +152,17 @@
   .msg.report .txt { border-color:rgba(105,183,255,.45); background:var(--info-dim); }
   .msg.handoff .txt { border-left:3px solid var(--acc); }
   .msg.board .txt { background:rgba(255,255,255,.09); }
+  .msg.standup .txt { background:transparent; border-style:dashed; font-size:13px; color:var(--ink-2); }
+  .msg.question .txt { border-color:rgba(255,201,77,.5); background:rgba(255,201,77,.08); }
+  .msg.answer .txt { border-color:rgba(255,201,77,.35); }
 
   /* ---------- inbox ---------- */
   .card { border:1px solid var(--line-2); border-radius:var(--r); overflow:hidden; background:var(--bg-2); margin-bottom:14px; animation:in .4s ease-out both; box-shadow:0 20px 40px rgba(0,0,0,.35); }
   .card .poster { position:relative; aspect-ratio:1/1; background:#000; }
   .card .poster img { width:100%; height:100%; display:block; object-fit:cover; }
   .card .poster .ov { position:absolute; left:10px; top:10px; display:flex; gap:6px; }
+  .card .poster .drawing { height:100%; display:grid; place-items:center; color:var(--ink-3); font-size:12px; background:repeating-linear-gradient(45deg, rgba(255,255,255,.03) 0 10px, transparent 10px 20px); }
+  .card .poster .drawing span { animation:blink 1.6s infinite; }
   .card .in { padding:12px 14px; }
   .card .h { font-weight:700; font-size:15px; letter-spacing:-.01em; margin:2px 0 6px; }
   .card .b { font-size:13px; color:var(--ink-2); white-space:pre-wrap; max-height:96px; overflow:auto; }
@@ -168,6 +184,14 @@
   .task .st.failed { background:var(--alert); color:#fff; border-color:var(--alert); }
   .task .st.waiting_human { color:var(--warn); border-color:rgba(255,201,77,.5); }
   .task button { padding:1px 8px; font-size:11px; border-radius:6px; }
+  .brief-card { border:1px solid var(--line-2); border-radius:12px; padding:10px 12px; margin:10px 0; background:rgba(0,0,0,.25); font-size:12.5px; }
+  .brief-card .t { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); margin-bottom:4px; }
+  .brief-card .hl { font-weight:700; font-size:14px; margin-bottom:6px; }
+  .brief-card ul { margin:4px 0 0; padding-left:16px; color:var(--ink-2); }
+  .brief-card li { margin:2px 0; }
+  .alloc { display:flex; height:8px; border-radius:6px; overflow:hidden; margin:6px 0 4px; background:rgba(255,255,255,.06); }
+  .alloc i { display:block; height:100%; }
+  .alloc-lbl { display:flex; gap:10px; font-family:var(--mono); font-size:10.5px; color:var(--ink-3); flex-wrap:wrap; }
   .round-title { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); margin:8px 0 2px; }
   details summary { cursor:pointer; font-size:12px; color:var(--ink-3); }
   textarea { width:100%; height:110px; font-family:var(--mono); font-size:11px; margin:6px 0; }
@@ -183,6 +207,9 @@
   .post .m { display:flex; gap:10px; margin-top:6px; font-family:var(--mono); font-size:10.5px; color:var(--ink-3); }
   .post .m b { color:var(--ink); font-weight:500; }
   .post.vetoed { opacity:.45; }
+  .post.in_review .poster::after { content:"with Sofia"; position:absolute; right:8px; bottom:8px; font-size:10px; background:rgba(0,0,0,.6); padding:2px 7px; border-radius:6px; color:var(--info); }
+  .post.blocked { opacity:.45; }
+  .post.video .poster { background:#000; overflow:hidden; } .post.video iframe { width:720px; height:720px; transform-origin:0 0; border:0; pointer-events:none; }
   .post.pending_approval .poster::after { content:"awaiting board"; position:absolute; right:8px; bottom:8px; font-size:10px; background:rgba(0,0,0,.6); padding:2px 7px; border-radius:6px; color:var(--warn); }
 
   /* ---------- hero / empty ---------- */
@@ -195,6 +222,18 @@
   .empty { color:var(--ink-3); font-size:13px; padding:10px 4px; }
 
   /* ---------- toast ---------- */
+  dialog { background:var(--bg-2); color:var(--ink); border:1px solid var(--line-2); border-radius:18px; padding:0; width:min(720px, 94vw); box-shadow:0 40px 120px rgba(0,0,0,.7); }
+  dialog::backdrop { background:rgba(0,0,0,.6); backdrop-filter:blur(4px); }
+  #brief-form { padding:22px 24px; }
+  .dlg-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
+  .dlg-head h3 { margin:0 0 4px; font-size:18px; letter-spacing:-.01em; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .grid2 label { display:flex; flex-direction:column; gap:5px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); }
+  .grid2 label input, .grid2 label textarea { font-size:14px; letter-spacing:0; text-transform:none; width:100%; resize:vertical; }
+  .grid2 .full { grid-column:1 / -1; }
+  .chan { display:flex; gap:14px; align-items:center; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); }
+  .chan .cb { display:flex; flex-direction:row; align-items:center; gap:6px; font-size:13px; letter-spacing:0; text-transform:none; color:var(--ink); }
+  .dlg-foot { display:flex; align-items:center; gap:10px; margin-top:18px; }
   #toasts { position:fixed; right:22px; bottom:22px; display:flex; flex-direction:column; gap:8px; z-index:9; }
   .toast { background:var(--bg-2); border:1px solid var(--line-2); border-left:3px solid var(--acc); border-radius:12px; padding:10px 14px; box-shadow:0 20px 50px rgba(0,0,0,.5); animation:in .3s ease-out; font-size:13px; max-width:360px; }
   .toast.alert { border-left-color:var(--alert); }
@@ -208,7 +247,7 @@
 <header>
   <div class="brand">
     <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a7 7 0 0 0-7 7v10l3-2 2 2 2-2 2 2 2-2 3 2V10a7 7 0 0 0-7-7z"/><circle cx="9.5" cy="11" r="1" fill="currentColor"/><circle cx="14.5" cy="11" r="1" fill="currentColor"/></svg></div>
-    <div><h1>Ghost Agency</h1><small>0 employees · 8 agents · 1 board</small></div>
+    <div><h1>Ghost Agency</h1><small>0 employees · 12 agents · 1 board</small></div>
   </div>
   <div class="co-status" id="company-status"><span class="dot"></span><span>starting</span></div>
   <div class="gauge">
@@ -219,6 +258,7 @@
   <span class="chip info" id="day-tag" hidden>day 0</span>
   <div class="spacer"></div>
   <div class="hdr-actions">
+    <label class="pace"><span>Pace</span><select id="pace"><option value="0">fast</option><option value="6">demo</option><option value="12">slow</option></select></label>
     <button class="kill danger" id="btn-pause"><span class="sw"></span><span class="lbl">Kill switch</span></button>
     <button class="ghost" id="btn-reset">Reset</button>
   </div>
@@ -233,7 +273,7 @@
   <div class="center">
     <div class="panel flow">
       <div class="head"><h2>Pipeline</h2><span class="dim mono" id="flow-sum"></span></div>
-      <div class="body"><svg id="flow" viewBox="0 0 1000 175" preserveAspectRatio="xMidYMid meet"></svg></div>
+      <div class="body"><svg id="flow" viewBox="0 0 1000 185" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
     <div class="panel">
       <div class="head"><h2>Team channel</h2><span class="dim mono" id="bus-count"></span></div>
@@ -245,11 +285,14 @@
         <div class="body">
           <div class="toolbar">
             <button id="btn-demo" class="acc">Start the company</button>
-            <button id="btn-demo2">Second brief</button>
+            <button id="btn-new">Your own brief</button>
+            <button id="btn-demo2" class="ghost" title="A B2B invoicing tool, to show it is not only bikes">2nd demo</button>
             <button id="btn-day" disabled>Simulate day →</button>
             <a id="campaign-link" href="#" target="_blank" hidden>campaign page ↗</a>
           </div>
-          <details><summary>Custom brief (JSON)</summary><textarea id="brief-json"></textarea><button id="btn-brief">Submit brief</button></details>
+
+          <div id="report"></div>
+          <div id="adplan"></div>
           <div id="pipeline"></div>
         </div>
       </div>
@@ -260,12 +303,39 @@
     </div>
   </div>
 
-  <div class="panel">
-    <div class="head"><h2>Board inbox</h2><span class="chip warn" id="inbox-count" hidden></span></div>
-    <div class="body" id="inbox"></div>
+  <div class="right">
+    <div class="panel">
+      <div class="head"><h2>Board inbox</h2><span class="chip warn" id="inbox-count" hidden></span></div>
+      <div class="body" id="inbox"></div>
+    </div>
+    <div class="panel" id="community-panel" hidden>
+      <div class="head"><h2>Community</h2><span class="dim mono" id="mood"></span></div>
+      <div class="body" id="community"></div>
+    </div>
   </div>
 </section>
 <div id="toasts"></div>
+
+<dialog id="brief-dialog">
+  <form id="brief-form" method="dialog">
+    <div class="dlg-head"><div><h3>New brief</h3><div class="muted small">This is the only input the company gets. Everything else, the agents work out.</div></div><button type="button" class="ghost" id="brief-close">✕</button></div>
+    <div class="grid2">
+      <label>Product name<input name="product_name" required placeholder="Nachtfiets"></label>
+      <label>Client budget (€)<input name="budget_eur" type="number" min="0" step="10" value="500"></label>
+      <label class="full">One-liner<input name="one_liner" required placeholder="A €9/month bike-light subscription that replaces stolen lights within 24h."></label>
+      <label class="full">Description<textarea name="description" rows="3" placeholder="What it is, how it works, what makes it different."></textarea></label>
+      <label class="full">Audience<input name="audience" placeholder="Amsterdam commuters and students, 18–35, who cycle daily"></label>
+      <label>Goal<input name="goals" placeholder="300 waitlist signups in 2 weeks"></label>
+      <label>Tone<input name="tone" placeholder="playful, Dutch-direct, never corporate"></label>
+      <div class="full chan"><span>Channels</span>
+        <label class="cb"><input type="checkbox" name="channels" value="instagram" checked> Instagram</label>
+        <label class="cb"><input type="checkbox" name="channels" value="x" checked> X</label>
+        <label class="cb"><input type="checkbox" name="channels" value="linkedin" checked> LinkedIn</label>
+      </div>
+    </div>
+    <div class="dlg-foot"><button type="button" class="ghost" id="brief-fill">Fill with demo brief</button><span class="spacer"></span><button type="submit" class="acc">Hand it to Iris →</button></div>
+  </form>
+</dialog>
 
 <script>
 const $ = (s) => document.querySelector(s);
@@ -273,12 +343,16 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&
 const eur = (v) => '€' + (Number(v) || 0).toFixed(2);
 const AGENTS = {
   ceo:{name:'Iris',color:'#c6ff4a'}, researcher:{name:'Nora',color:'#69b7ff'}, strategist:{name:'Bram',color:'#ffc94d'},
-  copywriter:{name:'Lena',color:'#ff8ad4'}, designer:{name:'Kofi',color:'#9d7bff'}, publisher:{name:'Tariq',color:'#4de3c1'},
-  analyst:{name:'Mei',color:'#ff9f5a'}, cfo:{name:'Otto',color:'#c9d3dd'}, board:{name:'Board',color:'#eef2f6'}, all:{name:'everyone',color:'#eef2f6'}
+  copywriter:{name:'Lena',color:'#ff8ad4'}, compliance:{name:'Sofia',color:'#ff7a7a'}, designer:{name:'Kofi',color:'#9d7bff'},
+  publisher:{name:'Tariq',color:'#4de3c1'}, motion:{name:'Jonas',color:'#7bdcff'}, paid_media:{name:'Jules',color:'#ffe08a'},
+  community:{name:'Pim',color:'#b8ff9a'}, analyst:{name:'Mei',color:'#ff9f5a'}, cfo:{name:'Otto',color:'#c9d3dd'},
+  board:{name:'Board',color:'#eef2f6'}, all:{name:'everyone',color:'#eef2f6'}
 };
-const who = (k) => (AGENTS[k] || {name:k}).name;
-const col = (k) => (AGENTS[k] || {color:'#888'}).color;
+const HIRED = {};   // key -> {name, color} learned from /api/state
+const who = (k) => (AGENTS[k] || HIRED[k] || {name:k}).name;
+const col = (k) => (AGENTS[k] || HIRED[k] || {color:'#888'}).color;
 const ini = (k) => who(k)[0];
+const CORE = Object.keys(AGENTS).slice(0, 12);
 
 let seenMsgs = new Set(), state = null, vetoOpen = new Set(), inboxKey = '', firstPoll = true, lastBriefId = null;
 
@@ -305,19 +379,21 @@ function renderHeader(s) {
   const arc = $('#gauge-arc'); arc.style.strokeDashoffset = 88 - 88 * pct;
   arc.style.stroke = pct >= 1 ? 'var(--alert)' : pct >= .8 ? 'var(--warn)' : 'var(--acc)';
   $('#mode-tag').textContent = s.mock.llm ? 'mock mode' : s.model;
+  const pace = $('#pace'); if (document.activeElement !== pace) pace.value = String([0, 6, 12].includes(Number(c.pace_seconds)) ? Number(c.pace_seconds) : 6);
   $('#mode-tag').className = 'chip ' + (s.mock.llm ? 'warn' : 'acc');
   const day = $('#day-tag'); day.hidden = !(s.brief && s.brief.day); if (s.brief) day.textContent = `day ${s.brief.day}`;
 }
 
 /* ---------- staff ---------- */
 function renderOrg(s) {
+  for (const a of s.agents) if (a.hired) HIRED[a.key] = {name: a.display_name.split(' (')[0], color: a.color || '#ffd166'};
   const working = s.agents.filter(a => a.status === 'working').length;
-  $('#staff-sum').textContent = working ? `${working} working` : s.company.paused ? 'paused' : '8 idle';
+  $('#staff-sum').textContent = working ? `${working} working` : s.company.paused ? 'paused' : `${s.agents.length} idle`;
   $('#org').innerHTML = s.agents.map(a => `
-    <div class="agent ${a.status}">
+    <div class="agent ${a.status}${a.hired ? ' hired' : ''}">
       <div class="avatar" style="background:${col(a.key)}">${ini(a.key)}</div>
       <div style="min-width:0">
-        <div class="n">${esc(who(a.key))} <small>${esc(a.display_name.replace(/^.*\((.*)\)$/, '$1'))}</small><span class="state">${a.status}</span></div>
+        <div class="n">${esc(who(a.key))} <small>${esc(a.display_name.replace(/^.*\((.*)\)$/, '$1'))}</small>${a.hired ? '<span class="chip acc" style="font-size:9px;padding:0 6px">hired</span>' : ''}<span class="state">${a.status}</span></div>
         <div class="t">${a.status === 'working' ? esc(a.current_task_title || 'working…') : a.status === 'blocked' ? 'blocked — needs a retry' : esc(a.role_summary)}</div>
         <div class="c">${(a.tokens_in + a.tokens_out).toLocaleString()} tok · ${eur(a.cost_eur)}</div>
       </div>
@@ -325,9 +401,11 @@ function renderOrg(s) {
 }
 
 /* ---------- pipeline graph ---------- */
-const NODES = {ceo:[70,60], researcher:[220,60], strategist:[370,60], copywriter:[520,60], designer:[670,60], publisher:[820,60], analyst:[595,118], cfo:[940,60]};
-const EDGES = [['ceo','researcher'],['researcher','strategist'],['strategist','copywriter'],['copywriter','designer'],['designer','publisher'],['publisher','cfo'],
-               ['publisher','analyst','loop'],['analyst','strategist','loop']];
+const NODES = {ceo:[50,55], researcher:[170,55], strategist:[290,55], copywriter:[410,55], compliance:[530,55], designer:[650,55], publisher:[770,55],
+               motion:[890,20], paid_media:[890,90], cfo:[960,55], community:[700,135], analyst:[520,135]};
+const EDGES = [['ceo','researcher'],['researcher','strategist'],['strategist','copywriter'],['copywriter','compliance'],['compliance','designer'],['designer','publisher'],
+               ['publisher','motion'],['publisher','paid_media'],['paid_media','cfo'],
+               ['publisher','community','loop'],['community','analyst'],['analyst','strategist','loop']];
 function renderFlow(s) {
   const latest = {};
   for (const t of s.tasks) { const cur = latest[t.agent_key]; if (!cur || t.round > cur.round || (t.round === cur.round && t.created_at > cur.created_at)) latest[t.agent_key] = t; }
@@ -343,18 +421,18 @@ function renderFlow(s) {
     else if (tb && tb.status === 'done' && ta && ta.status === 'done') cls += ' done';
     else if (tb && ['ready','waiting_human','blocked'].includes(tb.status) && ta && ta.status === 'done') cls += ' active';
     let d;
-    if (kind) { const cx = (x1 + x2) / 2, cy = Math.max(y1, y2) + 30; d = `M${x1} ${y1 + 22} Q${cx} ${cy + 20} ${x2} ${y2 + 22}`; }
-    else d = `M${x1 + 24} ${y1} L${x2 - 24} ${y2}`;
+    if (kind) { const cx = (x1 + x2) / 2, cy = Math.max(y1, y2) + 28; d = `M${x1} ${y1 + 20} Q${cx} ${cy + 22} ${x2} ${y2 + 20}`; }
+    else { const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy); d = `M${x1 + 20 * dx / L} ${y1 + 20 * dy / L} L${x2 - 20 * dx / L} ${y2 - 20 * dy / L}`; }
     out += `<path class="${cls}" d="${d}"/>`;
   }
   for (const [k, [x, y]] of Object.entries(NODES)) {
     const st = nodeState(k);
     const sub = st === 'idle' ? '' : st === 'waiting_human' ? 'board' : st === 'running' ? 'working' : st;
     out += `<g class="node ${st}" transform="translate(${x},${y})">
-      <circle class="halo" r="22"/><circle r="22"/>
+      <circle class="halo" r="19"/><circle r="19"/>
       <text class="ini" y="5">${ini(k)}</text>
-      <text class="lbl" y="40">${who(k)}</text>
-      <text class="sub" y="53">${sub}</text></g>`;
+      <text class="lbl" y="34">${who(k)}</text>
+      <text class="sub" y="46">${sub}</text></g>`;
   }
   $('#flow').innerHTML = out;
 }
@@ -373,10 +451,10 @@ function renderBus(s) {
     const el = document.createElement('div');
     el.className = `msg ${m.kind}${m.from_agent === 'board' ? ' board' : ''}`;
     el.innerHTML = `<div class="av ${m.from_agent === 'board' ? 'board' : ''}" style="background:${col(m.from_agent)}">${ini(m.from_agent)}</div>
-      <div><div class="who"><b>${esc(who(m.from_agent))}</b><span class="to">→ ${esc(who(m.to_agent))}</span><span class="chip ${m.kind === 'alert' ? 'alert' : m.kind === 'report' ? 'info' : m.kind === 'handoff' ? 'acc' : ''}">${esc(m.kind)}</span><time>${t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</time></div>
+      <div><div class="who"><b>${esc(who(m.from_agent))}</b><span class="to">→ ${esc(who(m.to_agent))}</span><span class="chip ${m.kind === 'alert' ? 'alert' : m.kind === 'report' ? 'info' : m.kind === 'handoff' ? 'acc' : (m.kind === 'question' || m.kind === 'answer') ? 'warn' : ''}">${esc(m.kind)}</span><time>${t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</time></div>
       <div class="txt">${esc(m.body)}</div></div>`;
     bus.appendChild(el);
-    if (!firstPoll && (m.kind === 'alert' || m.kind === 'report')) toast(`${who(m.from_agent)}: ${m.body.slice(0, 120)}${m.body.length > 120 ? '…' : ''}`, m.kind);
+    if (!firstPoll && (m.kind === 'alert' || (m.kind === 'report' && m.from_agent === 'analyst') || m.body.startsWith('I hired'))) toast(`${who(m.from_agent)}: ${m.body.slice(0, 120)}${m.body.length > 120 ? '…' : ''}`, m.kind);
   }
   if (added && nearBottom) bus.scrollTop = bus.scrollHeight;
   $('#bus-count').textContent = `${s.messages.length} msgs`;
@@ -393,12 +471,13 @@ function renderInbox(s, force) {
   if (!items.length) { box.innerHTML = `<div class="empty">${s.brief ? 'Nothing to decide. Posts land here when Lena is done.' : 'The board has nothing to review yet.'}</div>`; return; }
   box.innerHTML = items.map(c => `
     <div class="card" data-id="${c.id}">
-      <div class="poster">${c.has_asset ? `<img src="/api/content/${c.id}/asset.svg" alt="">` : ''}<div class="ov"><span class="chip">${esc(c.channel)}</span><span class="chip">round ${c.round}</span></div></div>
+      <div class="poster">${c.has_asset ? `<img src="/api/content/${c.id}/asset.svg" alt="">` : '<div class="drawing"><span>Kofi is drawing the poster…</span></div>'}<div class="ov"><span class="chip">${esc(c.channel)}</span><span class="chip">round ${c.round}</span></div></div>
       <div class="in">
         <div class="h">${esc(c.headline)}</div>
         <div class="b">${esc(c.body)}</div>
         <div class="why">${esc(c.cta)} · ${esc(c.rationale)}</div>
-        <div class="flags">${(c.risk_flags || []).map(f => `<span class="chip alert">⚠ ${esc(f)}</span>`).join('') || '<span class="chip acc">clean</span>'}</div>
+        <div class="flags">${(c.risk_flags || []).map(f => `<span class="chip alert">⚠ ${esc(f)}</span>`).join('') || '<span class="chip acc">clean</span>'}
+          <span class="chip ${c.compliance_verdict === 'revised' ? 'warn' : 'info'}">${c.compliance_verdict === 'revised' ? 'rewritten for Sofia' : 'Sofia: cleared'}</span></div>
       </div>
       <div class="actions">
         <button class="acc" data-act="approved">Approve</button>
@@ -419,12 +498,18 @@ function renderPipeline(s) {
   const day = $('#btn-day'); day.disabled = !b || !published || analystBusy || !!s.company.paused;
   day.className = day.disabled ? '' : 'acc glow';
   $('#btn-demo').textContent = b ? 'New demo brief' : 'Start the company';
+  const CH = {instagram:'#ee2a7b', x:'#ffffff', linkedin:'#0a66c2'};
+  $('#adplan').innerHTML = s.ad_plan ? `<div class="brief-card"><div class="t">Ad plan · round ${s.ad_plan.round} · Jules${s.ad_spend_eur ? ` · spent €${s.ad_spend_eur.toFixed(0)}` : ''}</div>
+      <div class="alloc">${s.ad_plan.allocation.map(a => `<i style="width:${a.share_pct}%;background:${CH[a.channel] || '#888'}" title="${a.channel}"></i>`).join('')}</div>
+      <div class="alloc-lbl">${s.ad_plan.allocation.map(a => `<span>${a.channel} ${a.share_pct}% · €${Number(a.daily_eur).toFixed(0)}/d</span>`).join('')}<span>· CPA target €${Number(s.ad_plan.expected_cpa_eur).toFixed(2)}</span></div></div>` : '';
+  $('#report').innerHTML = s.report ? `<div class="brief-card"><div class="t">Board report · round ${s.report.round} · Iris</div><div class="hl">${esc(s.report.headline)}</div>
+      <ul>${(s.report.body.learned || []).slice(0,2).map(x => `<li>${esc(x)}</li>`).join('')}${(s.report.body.next || []).slice(0,1).map(x => `<li><span class="muted">next:</span> ${esc(x)}</li>`).join('')}</ul></div>` : '';
   const rounds = {};
   for (const t of s.tasks) (rounds[t.round] ||= []).push(t);
   $('#pipeline').innerHTML = Object.keys(rounds).sort().map(r => `
     <div class="round-title">round ${r}</div>
     ${rounds[r].map(t => `<div class="task"><span class="st ${t.status}">${t.status === 'waiting_human' ? 'board' : t.status.replace('_',' ')}</span>
-      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>${esc(who(t.agent_key))}</b> <span class="muted">${esc(t.title)}</span></span>
+      <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b>${esc(who(t.agent_key))}</b> <span class="muted">${esc(t.title)}</span>${t.mode ? ` <span class="chip" style="font-size:9px;padding:0 5px">${t.mode.replace('_',' ')}</span>` : ''}</span>
       ${t.status === 'failed' ? `<button data-retry="${t.id}" title="${esc(t.error || '')}">Retry</button>` : ''}</div>`).join('')}`).join('') || (b ? '<div class="empty">Iris is reading the brief…</div>' : '');
 }
 
@@ -434,27 +519,49 @@ function renderContent(s) {
     $('#content-count').textContent = '';
     grid.innerHTML = `<div class="hero" style="grid-column:1/-1">
       <div class="big">A marketing agency with <em>zero employees.</em></div>
-      <p>Paste a brief. Eight agents research, plan, write, design, publish and iterate on their own. You sit on the board: approve, veto, or pull the plug.</p>
-      <div class="staff">${Object.keys(AGENTS).slice(0,8).map(k => `<div class="avatar" style="background:${col(k)}">${ini(k)}</div>`).join('')}</div></div>`;
+      <p>Paste a brief. Twelve agents research, plan, write, review, design, publish, film, buy media, talk to the audience and iterate on their own. You sit on the board: approve, veto, or pull the plug.</p>
+      <div class="staff">${CORE.map(k => `<div class="avatar" style="background:${col(k)}">${ini(k)}</div>`).join('')}</div></div>`;
     return;
   }
-  if (!s.content.length) { grid.innerHTML = '<div class="empty">No posts yet. Lena is up after Bram.</div>'; $('#content-count').textContent = ''; return; }
+  if (!s.content.length && !s.video) { grid.innerHTML = '<div class="empty">No posts yet. Lena is up after Bram.</div>'; $('#content-count').textContent = ''; return; }
   $('#content-count').textContent = `${s.content.filter(c => c.status === 'published').length} live · ${s.content.length} total`;
-  grid.innerHTML = s.content.map(c => `
+  const vid = s.video ? `<div class="post video"><div class="poster"><iframe src="/motion/${s.brief.id}?loop=1" title="campaign video"></iframe>
+      <div class="ov"><span class="chip acc">video</span><span class="chip ${s.video.status === 'ready' ? 'acc' : s.video.status === 'rendering' ? 'warn' : ''}">${s.video.status === 'ready' ? 'rendered' : s.video.status}</span></div></div>
+      <div class="in"><div class="h">${esc(s.video.title)}</div><div class="m"><span><b>${Math.round(s.video.duration_s || 0)}s</b> · Jonas</span></div></div></div>` : '';
+  grid.innerHTML = vid + s.content.map(c => `
     <div class="post ${c.status}">
       <div class="poster">${c.has_asset ? `<img src="/api/content/${c.id}/asset.svg" alt="">` : '<div class="noimg">poster pending</div>'}
-        <div class="ov"><span class="chip">${esc(c.channel)}</span>${c.round > 1 ? '<span class="chip info">revised</span>' : ''}${c.status === 'published' ? '<span class="chip acc">live</span>' : c.status === 'vetoed' ? '<span class="chip alert">vetoed</span>' : ''}</div></div>
+        <div class="ov"><span class="chip">${esc(c.channel)}</span>${c.round > 1 ? '<span class="chip info">revised</span>' : ''}${c.status === 'published' ? '<span class="chip acc">live</span>' : c.status === 'vetoed' ? '<span class="chip alert">vetoed</span>' : c.status === 'blocked' ? '<span class="chip alert">blocked</span>' : ''}</div></div>
       <div class="in"><div class="h">${esc(c.headline)}</div>
         ${c.metrics ? `<div class="m"><span><b>${c.metrics.impressions.toLocaleString()}</b> imp</span><span><b>${c.metrics.ctr}%</b> ctr</span><span><b>${c.metrics.signups}</b> signups</span></div>` : ''}</div>
     </div>`).join('');
 }
+
+let commKey = '';
+function renderCommunity(s) {
+  const panel = $('#community-panel');
+  const items = s.comments || [];
+  panel.hidden = !items.length;
+  if (!items.length) return;
+  const key = items.map(c => c.id + (c.reply ? 'r' : '')).join(',');
+  if (key === commKey) return;
+  commKey = key;
+  const pos = items.filter(c => c.mood === 'positive').length, neg = items.filter(c => c.mood === 'negative').length, neu = items.length - pos - neg;
+  $('#mood').textContent = `${items.length} comments · ${items.filter(c => c.reply).length} answered`;
+  $('#community').innerHTML = `<div class="mood"><i style="width:${100*pos/items.length}%;background:#b8ff9a"></i><i style="width:${100*neu/items.length}%;background:rgba(255,255,255,.25)"></i><i style="width:${100*neg/items.length}%;background:var(--alert)"></i></div>` +
+    items.slice().reverse().map(c => `<div class="cm"><div class="a"><b>${esc(c.author)}</b><span class="chip" style="font-size:9px;padding:0 6px">${esc(c.channel)}</span><span>day ${c.day}</span></div>
+      <div>${esc(c.text)}</div>${c.reply ? `<div class="r"><b>Pim</b> · ${esc(c.reply)}</div>` : '<div class="r muted">Pim is typing…</div>'}</div>`).join('');
+}
+
+function fitVideos() { for (const f of document.querySelectorAll('.post.video iframe')) { const w = f.parentElement.clientWidth; if (w) f.style.transform = `scale(${w / 720})`; } }
+window.addEventListener('resize', fitVideos);
 
 function render(s) {
   state = s;
   if (lastBriefId && s.brief && s.brief.id !== lastBriefId) { seenMsgs = new Set(); $('#bus').innerHTML = ''; }
   if (!s.brief) { seenMsgs = new Set(); }
   lastBriefId = s.brief ? s.brief.id : null;
-  renderHeader(s); renderOrg(s); renderFlow(s); renderBus(s); renderInbox(s); renderPipeline(s); renderContent(s);
+  renderHeader(s); renderOrg(s); renderFlow(s); renderBus(s); renderInbox(s); renderPipeline(s); renderContent(s); renderCommunity(s); fitVideos();
   firstPoll = false;
 }
 async function poll() { try { const r = await fetch('/api/state'); if (r.ok) render(await r.json()); } catch (e) { console.warn(e); } }
@@ -465,7 +572,9 @@ document.addEventListener('click', async (e) => {
   if (btn.id === 'btn-reset') { if (confirm('Wipe the campaign and start over? Agents and budget stay.')) { await api('/api/reset'); seenMsgs = new Set(); vetoOpen = new Set(); inboxKey = ''; $('#bus').innerHTML = ''; return poll(); } return; }
   if (btn.id === 'btn-demo') { await api('/api/briefs/demo?which=1'); toast('Brief handed to Iris.'); return poll(); }
   if (btn.id === 'btn-demo2') { await api('/api/briefs/demo?which=2'); toast('Second brief handed to Iris.'); return poll(); }
-  if (btn.id === 'btn-brief') { let b; try { b = JSON.parse($('#brief-json').value); } catch { return toast('Brief is not valid JSON', 'alert'); } await api('/api/briefs', b); return poll(); }
+  if (btn.id === 'btn-new') { $('#brief-dialog').showModal(); return; }
+  if (btn.id === 'brief-close') { $('#brief-dialog').close(); return; }
+  if (btn.id === 'brief-fill') { const d = DEMO; const f = $('#brief-form'); for (const k of ['product_name','one_liner','description','audience','goals','tone','budget_eur']) f.elements[k].value = d[k]; return; }
   if (btn.id === 'btn-day') { btn.disabled = true; await api(`/api/briefs/${state.brief.id}/simulate_day`); toast('A day passed. Mei is reading the numbers.'); return poll(); }
   if (btn.dataset.retry) { await api(`/api/tasks/${btn.dataset.retry}/retry`); return poll(); }
   const card = btn.closest('.card'); if (!card) return;
@@ -478,10 +587,19 @@ document.addEventListener('click', async (e) => {
     return poll();
   }
 });
+$('#pace').addEventListener('change', async (e) => { await api('/api/company/pace', {seconds: Number(e.target.value)}); toast(`Pace set to ${e.target.options[e.target.selectedIndex].text}.`); });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches('[data-note]')) e.target.closest('.card').querySelector('[data-act="vetoed"]').click();
 });
-$('#brief-json').value = JSON.stringify({product_name:'', one_liner:'', description:'', audience:'', goals:'', budget_eur:500, tone:'', channels:['instagram','linkedin','x']}, null, 2);
+const DEMO = {product_name:'Nachtfiets', one_liner:'A €9/month bike-light subscription that replaces your lights automatically when they get stolen.', description:'Amsterdam cyclists lose bike lights constantly. Nachtfiets ships a pair of bright, tool-free clip lights and replaces them free within 24h whenever they are stolen or broken. Cancel anytime.', audience:'Amsterdam commuters and students aged 18–35 who cycle daily and have had lights stolen at least once.', goals:'300 waitlist signups in 2 weeks before the October launch.', budget_eur:500, tone:'playful, Dutch-direct, a little cheeky, never corporate'};
+$('#brief-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target, fd = new FormData(f);
+  const b = {product_name: fd.get('product_name'), one_liner: fd.get('one_liner'), description: fd.get('description'), audience: fd.get('audience'),
+             goals: fd.get('goals'), tone: fd.get('tone'), budget_eur: Number(fd.get('budget_eur') || 0), channels: fd.getAll('channels')};
+  if (!b.channels.length) return toast('Pick at least one channel', 'alert');
+  await api('/api/briefs', b); $('#brief-dialog').close(); f.reset(); toast(`Brief for ${b.product_name} handed to Iris.`); poll();
+});
 poll(); setInterval(poll, 2000);
 </script>
 </body>

@@ -1,8 +1,8 @@
-"""The eight agents: one generic runner, eight configurations.
+"""The agents: one generic runner, many configurations.
 
-Each entry: display_name, role_summary, system_prompt, output_schema (JSON schema).
-Schemas are strict (all keys required, no extra keys) so they can double as
-structured-output schemas for the API and as validation for the mocks.
+Core agents are seeded from AGENTS. Hired specialists are created at runtime by the CEO
+(see runtime.hook_ceo) with SPECIALIST_SCHEMA. MODES are alternative jobs an agent can do
+(answer a colleague, run the standup, write the board report, revise posts).
 """
 from __future__ import annotations
 
@@ -12,16 +12,16 @@ COMPANY_CONTEXT = (
     "You work at Ghost Agency, a marketing agency run entirely by AI agents. "
     "There are no human employees; humans sit only on the board and review your work. "
     "Your colleagues, by name: Iris (CEO), Nora (Researcher), Bram (Strategist), Lena (Copywriter), "
-    "Kofi (Designer), Tariq (Publisher), Mei (Analyst), Otto (CFO). Use these names and no others. "
+    "Sofia (Compliance), Kofi (Designer), Tariq (Publisher), Jonas (Motion Designer), "
+    "Jules (Paid Media), Pim (Community Manager), Mei (Analyst), Otto (CFO), plus any specialist "
+    "Iris hires for a brief. Use these names and no others. "
     "Be brief, concrete and confident. Never use markdown inside JSON strings. "
     "Your message_to_team is at most 280 characters, written in first person, addressed to the "
     "next agent by name or to the team, and is what the board reads on the live feed."
 )
 
-NAMES = {
-    "ceo": "Iris", "researcher": "Nora", "strategist": "Bram", "copywriter": "Lena",
-    "designer": "Kofi", "publisher": "Tariq", "analyst": "Mei", "cfo": "Otto",
-}
+CORE_ORDER = ["ceo", "researcher", "strategist", "copywriter", "compliance", "designer", "publisher",
+              "motion", "paid_media", "community", "analyst", "cfo"]
 
 
 def _s(desc: str = "", **extra) -> dict:
@@ -29,6 +29,20 @@ def _s(desc: str = "", **extra) -> dict:
     if desc:
         d["description"] = desc
     d.update(extra)
+    return d
+
+
+def _n(desc: str = "") -> dict:
+    d = {"type": "number"}
+    if desc:
+        d["description"] = desc
+    return d
+
+
+def _i(desc: str = "") -> dict:
+    d = {"type": "integer"}
+    if desc:
+        d["description"] = desc
     return d
 
 
@@ -45,6 +59,11 @@ def _arr(items: dict, desc: str = "") -> dict:
 
 
 MSG = _s("<=280 chars, first person, addressed to the next agent or the team")
+QUESTION = {"type": ["object", "null"],
+            "description": "Optional. Ask one colleague one short question if it would improve your work; otherwise null.",
+            "properties": {"agent": _s("colleague key: ceo|researcher|strategist|copywriter|compliance|designer|publisher|analyst|cfo"),
+                           "question": _s("one sentence")},
+            "required": ["agent", "question"], "additionalProperties": False}
 
 CEO_SCHEMA = _obj({
     "campaign_name": _s(),
@@ -53,9 +72,16 @@ CEO_SCHEMA = _obj({
         "id": _s("local id like t1"),
         "agent": _s(enum=["researcher", "strategist", "copywriter", "publisher"]),
         "title": _s("short, human readable"),
-        "input": _obj({"num_posts": {"type": "integer"}, "focus": _s()}, required=[]),
+        "input": _obj({"num_posts": _i(), "focus": _s()}, required=[]),
         "depends_on": _arr(_s()),
     })),
+    "hires": _arr(_obj({
+        "key": _s("short snake_case role key, e.g. localizer"),
+        "name": _s("first name"),
+        "role": _s("job title, e.g. Dutch Localizer"),
+        "why": _s("one sentence"),
+        "brief": _s("2-3 sentences: what this specialist must deliver for this campaign"),
+    }), "specialists to hire for this brief; usually 0 or 1"),
     "escalations": _arr(_s("things the board should know now")),
     "message_to_team": MSG,
 })
@@ -75,28 +101,43 @@ STRATEGIST_SCHEMA = _obj({
     "key_messages": _arr(_s(), "exactly 3"),
     "channels": _arr(_obj({"channel": _s(enum=["instagram", "linkedin", "x", "landing"]),
                            "role": _s(), "cadence": _s()})),
-    "two_week_plan": _arr(_obj({"week": {"type": "integer"}, "focus": _s(), "posts": {"type": "integer"}})),
+    "two_week_plan": _arr(_obj({"week": _i(), "focus": _s(), "posts": _i()})),
     "success_metric": _s(),
     "changes_from_previous_round": _s("what changed and why; empty string in round 1"),
+    "question_for_colleague": QUESTION,
     "message_to_team": MSG,
 })
 
+CONTENT_ITEM = _obj({
+    "channel": _s(enum=["instagram", "linkedin", "x"]),
+    "headline": _s("<=60 chars"),
+    "body": _s("channel-appropriate length"),
+    "cta": _s(),
+    "hashtags": _arr(_s()),
+    "rationale": _s("why this post, one sentence"),
+    "risk_flags": _arr(_s(), "e.g. unverified claim, competitor mention, price promise"),
+})
+
 COPYWRITER_SCHEMA = _obj({
-    "items": _arr(_obj({
-        "channel": _s(enum=["instagram", "linkedin", "x"]),
-        "headline": _s("<=60 chars"),
-        "body": _s("channel-appropriate length"),
-        "cta": _s(),
-        "hashtags": _arr(_s()),
-        "rationale": _s("why this post, one sentence"),
-        "risk_flags": _arr(_s(), "e.g. unverified claim, competitor mention, price promise"),
+    "items": _arr(CONTENT_ITEM),
+    "question_for_colleague": QUESTION,
+    "message_to_team": MSG,
+})
+
+COMPLIANCE_SCHEMA = _obj({
+    "reviews": _arr(_obj({
+        "content_index": _i(),
+        "verdict": _s(enum=["clear", "revise", "block"]),
+        "issues": _arr(_s(), "specific problems, empty if clear"),
+        "note": _s("instruction to the copywriter if revise; reason if block; empty if clear"),
     })),
+    "summary": _s("<=60 words for the board"),
     "message_to_team": MSG,
 })
 
 DESIGNER_SCHEMA = _obj({
     "assets": _arr(_obj({
-        "content_index": {"type": "integer"},
+        "content_index": _i(),
         "headline": _s("<=6 words, may differ from post headline"),
         "subline": _s("<=12 words"),
         "palette": _obj({"bg": _s("#hex"), "fg": _s("#hex"), "accent": _s("#hex")}),
@@ -110,8 +151,41 @@ DESIGNER_SCHEMA = _obj({
 PUBLISHER_SCHEMA = _obj({
     "campaign_headline": _s("for the public campaign page"),
     "campaign_intro": _s("<=60 words"),
-    "schedule": _arr(_obj({"content_index": {"type": "integer"}, "publish_slot": _s("e.g. Day 1 09:00"),
-                           "channel": _s()})),
+    "schedule": _arr(_obj({"content_index": _i(), "publish_slot": _s("e.g. Day 1 09:00"), "channel": _s()})),
+    "message_to_team": MSG,
+})
+
+MOTION_SCHEMA = _obj({
+    "title": _s("video title"),
+    "scenes": _arr(_obj({
+        "text": _s("<=6 words, the big line"),
+        "subtext": _s("<=12 words or empty"),
+        "glyph": _s("single emoji or empty"),
+        "bg": _s("#hex"), "fg": _s("#hex"), "accent": _s("#hex"),
+        "seconds": _n("2-4"),
+        "style": _s(enum=["punch", "calm", "split"]),
+    }), "4-6 scenes, 12-20 seconds total"),
+    "caption": _s("<=120 chars caption for posting the video"),
+    "message_to_team": MSG,
+})
+
+PAID_MEDIA_SCHEMA = _obj({
+    "allocation": _arr(_obj({
+        "channel": _s(enum=["instagram", "linkedin", "x"]),
+        "share_pct": _i("0-100, shares sum to 100"),
+        "daily_eur": _n("daily ad spend on this channel"),
+        "objective": _s("e.g. waitlist signups, reach"),
+    })),
+    "expected_cpa_eur": _n("expected cost per signup"),
+    "rationale": _s("<=60 words"),
+    "message_to_team": MSG,
+})
+
+COMMUNITY_SCHEMA = _obj({
+    "replies": _arr(_obj({"comment_id": _s("the id label given, e.g. K1"), "reply": _s("<=200 chars, in brand voice")})),
+    "sentiment": _obj({"positive": _i(), "neutral": _i(), "negative": _i()}),
+    "themes": _arr(_s(), "2-4 recurring themes"),
+    "escalations": _arr(_s(), "comments the board or Mei should know about"),
     "message_to_team": MSG,
 })
 
@@ -121,7 +195,7 @@ ANALYST_SCHEMA = _obj({
     "loser_content_id": _s("the content_id label of the worst performer"),
     "findings": _arr(_s(), "3 strings, each tying a number to a reason"),
     "recommendations": _arr(_obj({"action": _s(), "why": _s(),
-                                  "target_agent": _s(enum=["strategist", "copywriter"])})),
+                                  "target_agent": _s(enum=["strategist", "copywriter", "paid_media"])})),
     "message_to_team": MSG,
 })
 
@@ -131,6 +205,53 @@ CFO_SCHEMA = _obj({
     "action": _s(enum=["continue", "pause", "reduce_scope"]),
     "message_to_team": MSG,
 })
+
+SPECIALIST_SCHEMA = _obj({
+    "deliverable": _s("your work product, <=200 words, plain text"),
+    "notes_for_copywriter": _arr(_s(), "3-6 concrete, usable notes"),
+    "message_to_team": MSG,
+})
+
+# ---------------------------------------------------------------- modes
+
+ANSWER_SCHEMA = _obj({"answer": _s("<=80 words, direct"), "message_to_team": MSG})
+STANDUP_SCHEMA = _obj({
+    "updates": _arr(_obj({"agent": _s("agent key"), "line": _s("<=140 chars, first person, in that agent's voice")})),
+    "message_to_team": MSG,
+})
+BOARD_REPORT_SCHEMA = _obj({
+    "headline": _s("<=10 words"),
+    "shipped": _arr(_s(), "what went live"),
+    "learned": _arr(_s(), "what the numbers taught us"),
+    "spend_line": _s("one sentence on LLM spend and ad spend"),
+    "next": _arr(_s(), "next steps the company will take on its own"),
+    "risks": _arr(_s(), "what the board should worry about"),
+    "message_to_team": MSG,
+})
+
+MODES: dict[str, dict] = {
+    "answer": {"schema": ANSWER_SCHEMA, "kind": "answer",
+               "prompt": "A colleague asked you a question. Answer it directly from your knowledge of this "
+                         "campaign and your earlier work. Do not restate the question."},
+    "standup": {"schema": STANDUP_SCHEMA, "kind": "standup",
+                "prompt": "Run the daily standup. Write one line per agent who has done work on this campaign, "
+                          "in that agent's own voice and first person: what they did, what they are watching. "
+                          "Keep it human and specific; no filler."},
+    "board_report": {"schema": BOARD_REPORT_SCHEMA, "kind": "report",
+                     "prompt": "Write the board report for this round: what shipped, what we learned, what it "
+                               "cost, what the company will do next on its own, and risks. Plain language, "
+                               "no hype, every claim backed by something in the context."},
+    "revise": {"schema": COPYWRITER_SCHEMA, "kind": "handoff",
+               "prompt": "Compliance sent posts back. Rewrite ONLY the listed posts, one item per post in the "
+                         "same order, fixing every issue in the note while keeping the hook and channel. "
+                         "Set question_for_colleague to null."},
+}
+
+
+def specialist_prompt(name: str, role: str, brief: str) -> str:
+    return (COMPANY_CONTEXT + f"\n\nYou are {name}, hired by Iris as {role} for this campaign. "
+            f"Your assignment: {brief}\nDeliver something the copywriter can use directly: exact phrases, "
+            "rules, examples. Be specific to the brief's audience and market. No generic advice.")
 
 
 AGENTS: dict[str, dict] = {
@@ -143,10 +264,13 @@ You are Iris, the CEO. Your job: read the client brief and delegate.
 Always produce exactly four tasks in this order and shape:
 t1 researcher (depends_on []), t2 strategist (depends_on [t1]),
 t3 copywriter (depends_on [t2], input.num_posts 3 or 4), t4 publisher (depends_on [t3]).
-The runtime adds the designer itself; do not include designer, analyst or cfo tasks.
-Write titles as a manager would say them out loud ("Map the Amsterdam bike-light market").
-Name the campaign. State one objective sentence. List escalations only if the brief has a real
-problem (legal claim, impossible goal); otherwise an empty list.""",
+The runtime adds compliance, design, motion, paid media and analytics itself; do not list them.
+Hiring: you may hire at most one specialist when the brief needs a skill the core team lacks.
+Typical: a native-language localiser for a non-English market, a regulated-industry expert
+(finance, health), a niche-community insider. If the brief targets a non-English-speaking market,
+hire a localiser. Otherwise hires is an empty list.
+Write titles as a manager would say them out loud. Name the campaign. State one objective sentence.
+List escalations only if the brief has a real problem; otherwise an empty list.""",
         "output_schema": CEO_SCHEMA,
     },
     "researcher": {
@@ -171,7 +295,9 @@ three key messages, a role and cadence per channel from the brief, a two-week pl
 success metric tied to the brief's goal.
 If this is a revision round you will receive an analyst report with recommendations. Then you
 must change something concrete and explain it in changes_from_previous_round (name the finding
-that drove it). In round 1 set changes_from_previous_round to an empty string.""",
+that drove it). In round 1 set changes_from_previous_round to an empty string.
+You may ask one colleague one question via question_for_colleague when a fact would sharpen
+the plan (usually Nora); otherwise null.""",
         "output_schema": STRATEGIST_SCHEMA,
     },
     "copywriter": {
@@ -185,10 +311,26 @@ Bodies: x <=240 chars, instagram 2-4 short lines, linkedin 3-5 sentences. Each p
 2-5 hashtags and a one-sentence rationale.
 Self-check every post and list risk_flags honestly: "unverified claim", "competitor mention",
 "price promise", "legal", or [] if clean. Never invent statistics; if a number appears, flag it.
+If a hired specialist delivered notes, use them and say so in a rationale.
 If you receive board veto notes, do not repeat the vetoed approach.
 In revision rounds you receive analyst recommendations: at least one post must implement one
-explicitly and its rationale must say which recommendation it implements.""",
+explicitly and its rationale must say which recommendation it implements.
+You may ask one colleague one question via question_for_colleague; otherwise null.""",
         "output_schema": COPYWRITER_SCHEMA,
+    },
+    "compliance": {
+        "display_name": "Sofia (Compliance)",
+        "role_summary": "Reviews every post before the board sees it",
+        "system_prompt": COMPANY_CONTEXT + """
+
+You are Sofia, Compliance and brand safety. You review every post before the human board sees it.
+Check each post for: unverifiable numbers or claims, price or delivery promises the brief does not
+support, misleading comparisons or competitor mentions, legal or regulatory issues (advertising
+rules, privacy), tone that could embarrass the client.
+Verdicts: "clear" if fine; "revise" with a precise instruction if the post can be fixed in one pass;
+"block" only for something that must not run at all. Be proportionate: a cheeky tone the brief asked
+for is not an issue. Most posts should clear. Use content_index exactly as given.""",
+        "output_schema": COMPLIANCE_SCHEMA,
     },
     "designer": {
         "display_name": "Kofi (Designer)",
@@ -214,16 +356,53 @@ mornings and lunch-times. Never invent numbers (waitlist counts, customers, savi
 in the brief or the approved posts. The runtime does the actual publishing.""",
         "output_schema": PUBLISHER_SCHEMA,
     },
+    "motion": {
+        "display_name": "Jonas (Motion Designer)",
+        "role_summary": "Storyboards the campaign video",
+        "system_prompt": COMPANY_CONTEXT + """
+
+You are Jonas, the Motion Designer. Storyboard a 12-20 second square promo video for the campaign
+from the published posts: 4-6 scenes, each one big line (<=6 words), an optional subline, an
+optional single emoji, a palette, a duration of 2-4 seconds and a style (punch = hard cut and big
+type, calm = slow fade, split = two-colour layout). Open with the pain, land the promise, end with
+the product name and CTA. Colours must contrast. The runtime renders and records the video.""",
+        "output_schema": MOTION_SCHEMA,
+    },
+    "paid_media": {
+        "display_name": "Jules (Paid Media)",
+        "role_summary": "Allocates the client's ad budget",
+        "system_prompt": COMPANY_CONTEXT + """
+
+You are Jules, Paid Media. Split the client's campaign budget (from the brief, in euros) across the
+channels that are live as a daily spend for the next days, with a share per channel that sums to
+100 and an objective per channel. Expect a realistic cost per signup for a small consumer waitlist
+(EUR 2-8). In later rounds you receive the analyst's report and the measured cost per signup per
+channel: move money toward what converts and say so in rationale.""",
+        "output_schema": PAID_MEDIA_SCHEMA,
+    },
+    "community": {
+        "display_name": "Pim (Community Manager)",
+        "role_summary": "Replies to the audience, reads the mood",
+        "system_prompt": COMPANY_CONTEXT + """
+
+You are Pim, the Community Manager. You receive today's audience comments on the live posts, each
+with an id label. Reply to every comment in the brand's tone (short, warm, never defensive; answer
+questions straight, thank praise briefly, de-escalate complaints and offer a next step). Never
+promise anything the brief does not support. Count sentiment, name recurring themes, and list
+escalations the board or Mei should know about.""",
+        "output_schema": COMMUNITY_SCHEMA,
+    },
     "analyst": {
         "display_name": "Mei (Analyst)",
         "role_summary": "Reads metrics, explains, recommends",
         "system_prompt": COMPANY_CONTEXT + """
 
 You are Mei, the Analyst. You receive per-post metrics (each post has a content_id label like
-C1, C2) plus the posts and the current strategy. Write a <=120 word plain-language report for
-the board, name the winner and loser by their content_id label, give three findings each tying
-a number to a reason, and 2-3 recommendations with target_agent set to strategist (positioning,
-channel mix) or copywriter (format, hook, wording). Be specific: "double down on the numbered
+C1, C2), ad spend per channel with cost per signup, the community sentiment, the posts and the
+current strategy. Write a <=120 word plain-language report for the board, name the winner and
+loser by their content_id label, give three findings each tying a number to a reason, and 2-3
+recommendations with target_agent set to strategist (positioning, channel mix), copywriter
+(format, hook, wording) or paid_media (budget shifts). Be specific: "double down on the numbered
 headline format" beats "improve engagement".""",
         "output_schema": ANALYST_SCHEMA,
     },

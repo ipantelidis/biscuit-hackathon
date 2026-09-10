@@ -1,0 +1,9 @@
+{
+  "reviews": [
+    {"content_index": 0, "verdict": "clear", "issues": [], "note": ""},
+    {"content_index": 1, "verdict": "clear", "issues": [], "note": ""},
+    {"content_index": 2, "verdict": "revise", "issues": ["'thousands of Amsterdam commuters get fined' is an unverified statistic", "'replaced free within 24 hours' should be phrased as the service promise, not a guarantee"], "note": "Remove the 'thousands' figure or attribute it; keep the 24h replacement as 'we replace within 24 hours' without 'guaranteed'."}
+  ],
+  "summary": "Two posts clear. The LinkedIn post carries an unverified number about fines; sent back to Lena for one rewrite. Nothing blocked.",
+  "message_to_team": "Lena, two posts clear. The LinkedIn one goes back to you: drop the 'thousands of commuters' figure or attribute it, and keep the 24h promise as a plain statement. Board, nothing blocked."
+}

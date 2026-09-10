@@ -1153,20 +1153,21 @@ def _mock_chat(message: str, brief: dict | None, st: dict) -> dict:
                              "budget, so I assumed a consumer audience, 300 signups in two weeks and EUR 500; tell me if that is "
                              "wrong and I will correct the brief. Nora starts on the market now.",
                     "actions": [{"type": "start_brief", "brief": brief_out}]}
-        return {"reply": "Hi, I am Iris. I run this place, and you are the board. Tell me about the product you want marketed: "
-                         "what it is, who it is for, what you want to happen in two weeks. One paragraph is enough; I will fill "
-                         "in the rest and start the team.", "actions": []}
+        return {"reply": "Hi, I am Iris. I run the team here, and you are the boss. Tell me about the thing you sell: what it "
+                         "is, who buys it, and what you would like to happen in the next two weeks. A few sentences are enough; "
+                         "I will work out the rest and get the team going.", "actions": []}
     b = st["brief"]
     if any(w in m for w in ("pause", "stop everything", "kill")):
-        return {"reply": "Pausing the company now. Everyone finishes their current call and stops. Say resume when you want them back.",
+        return {"reply": "Pausing everything now. The team finishes what it is doing this second and then stops. Say resume when you want them back.",
                 "actions": [{"type": "pause"}]}
     if any(w in m for w in ("resume", "continue", "unpause", "start again")):
         return {"reply": "Resuming. The team picks up where it stopped.", "actions": [{"type": "resume"}]}
     if any(w in m for w in ("next day", "simulate", "a day", "run a day", "advance", "results")):
         if st["content"]["published"] == 0:
             return {"reply": "Nothing is live yet, so there is no day to run. " + (f"{len(st['pending_approvals'])} posts are waiting for your approval in the inbox." if st.get("pending_approvals") else "Lena is still writing."), "actions": []}
-        return {"reply": f"Running day {b['day'] + 1}. I will hold the standup, Pim answers the comments, Mei reads the numbers and "
-                         "tells Bram what to change. Give it a minute.", "actions": [{"type": "simulate_day"}]}
+        return {"reply": f"Moving on to day {b['day'] + 1}. Pim will answer what people wrote under the posts, Mei will look at "
+                         "how each post did, and Bram will change the plan if something is not working. Give it a minute.",
+                "actions": [{"type": "simulate_day"}]}
     for alias, key in AGENT_ALIASES.items():
         if key != "ceo" and re.search(rf"\b(tell|ask|let)\b.*\b{alias}\b", m):
             note = re.split(rf"\b{alias}\b", message, flags=re.I)[-1].strip(" :,to") or message
@@ -1175,10 +1176,11 @@ def _mock_chat(message: str, brief: dict | None, st: dict) -> dict:
     pending = st.get("pending_approvals") or []
     lines = [f"{b['product_name']}, campaign {b.get('campaign_name') or 'in planning'}, {b['status']}, day {b['day']}, round {b['round']}."]
     if pending:
-        lines.append(f"{len(pending)} post(s) are waiting for you in the inbox: " + "; ".join(p["headline"] for p in pending[:3]) + ".")
+        lines.append(f"{len(pending)} post(s) are waiting for your yes or no in the inbox: " + "; ".join(p["headline"] for p in pending[:3]) + ".")
     if st.get("performance"):
         top = max(st["performance"], key=lambda p: p["ctr_per_day"] or 0)
-        lines.append(f"Best post so far: \"{top['headline']}\" on {top['channel']} at {round(100 * (top['ctr_per_day'] or 0), 1)} percent click-through per day, {top['signups']} signups.")
+        pct = round(100 * (top['ctr_per_day'] or 0), 1)
+        lines.append(f"The post doing best is \"{top['headline']}\" on {top['channel']}: about {pct} out of every 100 people who saw it clicked, and {top['signups']} signed up.")
     if st.get("latest_analyst_report"):
         lines.append("Mei's last read: " + st["latest_analyst_report"][:200])
     if st.get("agents_working"):

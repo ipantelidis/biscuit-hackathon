@@ -349,7 +349,7 @@
       </div>
       <div class="body" id="chat"></div>
       <form class="chat-in" id="chat-form">
-        <input id="chat-msg" placeholder="Tell Iris about your product, ask how it is going, or give an instruction…" autocomplete="off" maxlength="2000">
+        <input id="chat-msg" placeholder="Tell Iris what you sell, ask how it is going, or give an instruction…" autocomplete="off" maxlength="2000">
         <button type="submit" class="acc" id="chat-send">Send</button>
       </form>
     </div>
@@ -628,7 +628,7 @@ function renderChat(s) {
   const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
   let html = '';
   if (!items.length) {
-    html = `<div class="bub ceo">Hi, I am Iris. I run this company and you are the board. Tell me about the product you want marketed and I will start the team. Ask me how things are going, or tell me what to pass on to whom.<time>now</time></div>
+    html = `<div class="bub ceo">Hi, I am Iris. I run the team here, and you are the boss. Tell me about the thing you sell and I will get the team going. Ask me how it is going any time, in plain words, or tell me what to pass on to whom.<time>now</time></div>
       <div class="sugg"><button data-sugg="We make Nachtfiets, a €9/month bike-light subscription for Amsterdam cyclists that replaces stolen lights within 24 hours. Goal: 300 waitlist signups in two weeks before the October launch. Tone: playful, Dutch-direct.">Describe Nachtfiets</button><button data-sugg="How is the campaign going?">How is it going?</button><button data-sugg="Run the next day and tell me what Mei finds.">Run a day</button><button data-sugg="Tell Lena to be less salesy and more specific.">Give Lena a note</button></div>`;
   } else {
     html = items.map(c => `<div class="bub ${c.role}">${esc(c.body)}${(c.actions || []).length ? `<div class="acts">${c.actions.map(a => `<span class="chip ${c.role === 'ceo' ? 'acc' : ''}">✓ ${esc(a.label)}</span>`).join('')}</div>` : ''}<time>${new Date(c.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</time></div>`).join('');

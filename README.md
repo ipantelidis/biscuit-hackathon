@@ -1,6 +1,6 @@
 # Ghost Boosters
 
-A marketing agency with zero employees. Paste a product brief; twelve AI agents research,
+A marketing agency with zero employees. Paste a product brief; thirteen AI agents research,
 strategise, write, review, design, publish, film, buy media, talk to the audience, measure and
 iterate. The CEO hires specialists when a brief needs one. Humans sit only on the board.
 
@@ -82,6 +82,7 @@ real person; `static/iris.svg` is the fallback.
 | Nora (Researcher) | market, competitors, personas; answers colleagues' questions | round 1 |
 | Bram (Strategist) | positioning, channels, plan; revises on the analyst's findings; may ask Nora a question | every round |
 | Lena (Copywriter) | posts with self-reported risk flags; rewrites what Sofia sends back | every round |
+| Yara (SEO) | the words people search for, wording rules for Lena, campaign page title and description; fixes wording of weak posts in revision rounds | after research; every revision round |
 | Sofia (Compliance) | reviews every post before the board: clear, revise or block | every round |
 | Kofi (Designer) | poster spec per post, rendered to SVG | every round |
 | Tariq (Publisher) | ships approved posts, writes the campaign page | after the board decides |
@@ -116,7 +117,13 @@ day opens with a standup, and vetoed posts feed back into the next round's brief
 
 ## Real photography and footage
 
-Posters are built on real licensed photographs and the campaign video on real stock clips. Kofi and
+Posters are built on real licensed photographs and the campaign video on real stock clips; when the
+GPU video environment exists, Jonas's storyboard is then shot by a local text-to-video model
+(LTX-Video, one clip per scene in parallel across GPUs, about a minute) and the generated cut
+replaces the footage cut. Set `VIDEO_GEN=0` to keep footage only. Setup:
+`uv venv --python 3.12 .venv-video && uv pip install --python .venv-video/bin/python --index-url
+https://download.pytorch.org/whl/cu128 torch && uv pip install --python .venv-video/bin/python
+diffusers transformers accelerate sentencepiece protobuf "imageio[ffmpeg]"` (the model downloads on first use). Kofi and
 Jonas describe the shot (`photo_query`); the runtime licenses it: **Pexels** (photos and videos, set
 `PEXELS_API_KEY`, free) with **Wikimedia Commons** as the keyless photo fallback. Files are cached in
 `media/photos` and `media/clips` and reused across runs; a photo or clip is never used twice in one

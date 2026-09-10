@@ -363,7 +363,7 @@
 
 <dialog id="brief-dialog">
   <form id="brief-form" method="dialog">
-    <div class="dlg-head"><div><h3>New brief</h3><div class="muted small">This is the only input the company gets. Everything else, the agents work out.</div></div><button type="button" class="ghost" id="brief-close">✕</button></div>
+    <div class="dlg-head"><div><h3>New brief</h3><div class="muted small">This is the only input the company gets. Everything else, the agents work out.</div><div class="chip warn" id="mock-warn" style="margin-top:8px" hidden>mock mode: agents answer with canned demo content, set MOCK_LLM=0 for real output</div></div><button type="button" class="ghost" id="brief-close">✕</button></div>
     <div class="grid2">
       <label>Product name<input name="product_name" required placeholder="Nachtfiets"></label>
       <label>Client budget (€)<input name="budget_eur" type="number" min="0" step="10" value="500"></label>
@@ -673,7 +673,7 @@ document.addEventListener('click', async (e) => {
   if (btn.id === 'btn-reset') { if (confirm('Wipe the campaign and start over? Agents and budget stay.')) { await api('/api/reset'); seenMsgs = new Set(); vetoOpen = new Set(); inboxKey = contentKey = orgKey = flowKey = commKey = chatKey = ''; $('#bus').innerHTML = ''; return poll(); } return; }
   if (btn.id === 'btn-demo') { await api('/api/briefs/demo?which=1'); toast('Brief handed to Iris.'); return poll(); }
   if (btn.id === 'btn-demo2') { await api('/api/briefs/demo?which=2'); toast('Second brief handed to Iris.'); return poll(); }
-  if (btn.id === 'btn-new') { $('#brief-dialog').showModal(); return; }
+  if (btn.id === 'btn-new') { $('#mock-warn').hidden = !(state && state.mock.llm); $('#brief-dialog').showModal(); return; }
   if (btn.id === 'brief-close') { $('#brief-dialog').close(); return; }
   if (btn.id === 'brief-fill') { const d = DEMO; const f = $('#brief-form'); for (const k of ['product_name','one_liner','description','audience','goals','tone','budget_eur']) f.elements[k].value = d[k]; return; }
   if (btn.id === 'btn-day') { btn.disabled = true; await api(`/api/briefs/${state.brief.id}/simulate_day`); toast('A day passed. Mei is reading the numbers.'); return poll(); }
@@ -713,7 +713,8 @@ $('#brief-form').addEventListener('submit', async (e) => {
   const b = {product_name: fd.get('product_name'), one_liner: fd.get('one_liner'), description: fd.get('description'), audience: fd.get('audience'),
              goals: fd.get('goals'), tone: fd.get('tone'), budget_eur: Number(fd.get('budget_eur') || 0), channels: fd.getAll('channels')};
   if (!b.channels.length) return toast('Pick at least one channel', 'alert');
-  await api('/api/briefs', b); $('#brief-dialog').close(); f.reset(); toast(`Brief for ${b.product_name} handed to Iris.`); poll();
+  await api('/api/briefs', b); $('#brief-dialog').close(); f.reset();
+  toast(state && state.mock.llm ? `Brief for ${b.product_name} handed to Iris. Mock mode: the team will answer with canned demo content.` : `Brief for ${b.product_name} handed to Iris.`); poll();
 });
 poll(); setInterval(poll, 2000);
 </script>

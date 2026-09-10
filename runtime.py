@@ -626,6 +626,7 @@ def hook_designer(task: dict, out: dict, brief: dict) -> None:
     content_ids = task["input"].get("content_ids", [])
     specs = {a["content_index"]: a for a in out["assets"]}
     redesign = bool(task["input"].get("redesign"))
+    subject = out.get("subject_keywords") or []
     used = {a["photo_url"] for a in db.query("assets", "photo_url IS NOT NULL")
             if (db.get("content", a["content_id"]) or {}).get("brief_id") == brief["id"]}
     for i, cid in enumerate(content_ids):
@@ -639,7 +640,7 @@ def hook_designer(task: dict, out: dict, brief: dict) -> None:
         spec = specs.get(i) or {"content_index": i, "headline": c["headline"], "subline": c["cta"],
                                 "palette": {}, "layout": ("photo", "split", "frame")[i % 3], "treatment": "dark",
                                 "photo_query": f"{brief['product_name']} {c['headline']}", "alt_text": c["headline"]}
-        photo = tools.find_photo(spec.get("photo_query") or f"{brief['product_name']} {c['headline']}", exclude=used)
+        photo = tools.find_photo(spec.get("photo_query") or f"{brief['product_name']} {c['headline']}", exclude=used, subject=subject)
         if photo:
             used.add(photo.get("url") or photo.get("source_url"))
         svg = tools.render_poster_svg(spec, brief["product_name"], photo)
@@ -700,11 +701,12 @@ def _render_video_async(video_id: str, brief: dict, spec: dict) -> None:
 
 def hook_motion(task: dict, out: dict, brief: dict) -> None:
     scenes, used = [], set()
+    subject = out.get("subject_keywords") or []
     for sc in out["scenes"]:
         sc = dict(sc)
         q = sc.get("photo_query")
-        clip = tools.find_video(q, exclude=used) if q else None
-        photo = tools.find_photo(q, exclude=used) if (q and not clip) else None
+        clip = tools.find_video(q, exclude=used, subject=subject) if q else None
+        photo = tools.find_photo(q, exclude=used, subject=subject) if (q and not clip) else None
         for m in (clip, photo):
             if m:
                 used.add(m.get("source_url") or m.get("url"))

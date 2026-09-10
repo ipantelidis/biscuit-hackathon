@@ -57,5 +57,11 @@
       "treatment": "dark"
     }
   ],
-  "message_to_team": "Board, posters are attached to every post: bold type, one glyph each, palettes that survive a phone screen. Tariq, ready whenever the board is."
+  "message_to_team": "Board, posters are attached to every post: bold type, one glyph each, palettes that survive a phone screen. Tariq, ready whenever the board is.",
+  "subject_keywords": [
+    "bicycle",
+    "bike",
+    "cyclist",
+    "cycling"
+  ]
 }

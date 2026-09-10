@@ -29,5 +29,11 @@
       "treatment": "dark"
     }
   ],
-  "message_to_team": "Board, round-two posters attached: the number is the biggest thing on the canvas, as Mei asked. Tariq, over to you."
+  "message_to_team": "Board, round-two posters attached: the number is the biggest thing on the canvas, as Mei asked. Tariq, over to you.",
+  "subject_keywords": [
+    "bicycle",
+    "bike",
+    "cyclist",
+    "cycling"
+  ]
 }

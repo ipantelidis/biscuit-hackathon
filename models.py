@@ -167,6 +167,7 @@ class AssetSpec(BaseModel):
 
 
 class DesignerOut(_Out):
+    subject_keywords: list[str] = Field(default_factory=list)
     assets: list[AssetSpec] = Field(..., min_length=1)
 
 
@@ -203,6 +204,7 @@ class Scene(BaseModel):
 
 class MotionOut(_Out):
     title: str
+    subject_keywords: list[str] = Field(default_factory=list)
     scenes: list[Scene] = Field(..., min_length=2, max_length=8)
     caption: str = ""
 

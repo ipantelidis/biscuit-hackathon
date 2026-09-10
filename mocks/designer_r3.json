@@ -29,5 +29,11 @@
       "treatment": "light"
     }
   ],
-  "message_to_team": "Board, round-three posters: place names big, no numbers, one dark and one light so the feed does not look like one campaign on repeat. Tariq, over to you."
+  "message_to_team": "Board, round-three posters: place names big, no numbers, one dark and one light so the feed does not look like one campaign on repeat. Tariq, over to you.",
+  "subject_keywords": [
+    "bicycle",
+    "bike",
+    "cyclist",
+    "cycling"
+  ]
 }

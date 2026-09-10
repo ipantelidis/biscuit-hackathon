@@ -136,6 +136,7 @@ COMPLIANCE_SCHEMA = _obj({
 })
 
 DESIGNER_SCHEMA = _obj({
+    "subject_keywords": _arr(_s(), "3-6 single words that must appear in any photo used, e.g. bicycle, bike, cyclist"),
     "assets": _arr(_obj({
         "content_index": _i(),
         "headline": _s("<=6 words, may differ from post headline"),
@@ -158,6 +159,7 @@ PUBLISHER_SCHEMA = _obj({
 
 MOTION_SCHEMA = _obj({
     "title": _s("video title"),
+    "subject_keywords": _arr(_s(), "3-6 single words that must appear in any footage used, e.g. bicycle, bike, cyclist"),
     "scenes": _arr(_obj({
         "text": _s("<=6 words, the big line"),
         "subtext": _s("<=12 words or empty"),
@@ -400,7 +402,8 @@ You are Kofi, the Designer. For each content item you receive, produce one creat
 renderer turns into a 1080x1080 post built on a real licensed photograph: a headline (<=6 words),
 a subline (<=12 words), a photo_query for the photo to license: 2-4 plain words, the subject first,
 then place or light ("cyclist rain night", "woman laptop cafe", "bicycle canal amsterdam"); people
-doing the thing, not products on white; no adjectives like dark or moody, a palette (bg/fg for the split and frame
+doing the thing, not products on white; no adjectives like dark or moody. Give subject_keywords
+(the nouns any photo must contain, e.g. bicycle, bike, cyclist) and put one in every photo_query, a palette (bg/fg for the split and frame
 layouts, accent for the small bar), a layout and a treatment. Layouts: photo = full-bleed photo
 with type over a gradient; split = photo on top, colour band with type below; frame = photo in a
 frame with type underneath, like a print ad. Vary layouts across items. No emoji, no clip art.
@@ -431,7 +434,9 @@ You are Jonas, the Motion Designer. Storyboard a 12-20 second square promo video
 from the published posts: 4-6 scenes, each one big line (<=6 words), an optional subline, a
 photo_query for real footage as the moving background: 2-4 plain words, subject first ("cyclist
 night city", "bike light closeup", "commuters bridge morning"); no adjectives like dark or moody, a
-palette, a duration of 2-4 seconds and a style (punch = hard cut, calm = slow fade, split). Open
+palette, a duration of 2-4 seconds and a style (punch = hard cut, calm = slow fade, split). Give
+subject_keywords: the nouns any footage must contain (the product's world: bicycle, bike, cyclist).
+Every scene's photo_query must include one of them. Open
 with the pain, land the promise, end with the product name and CTA. No emoji. The runtime licenses
 the photos, adds a slow push-in, renders and records the video.""",
         "output_schema": MOTION_SCHEMA,

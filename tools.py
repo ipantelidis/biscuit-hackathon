@@ -564,6 +564,14 @@ def _overlap(query: str, text: str) -> int:
     text = text.lower()
     return sum(1 for w in words if w in text)
 
+
+def _on_subject(text: str, subject: list[str] | None) -> bool:
+    """True when no subject list is given, or the description contains one of the subject words."""
+    if not subject:
+        return True
+    text = (text or "").lower()
+    return any(w.lower().strip() in text for w in subject if w and len(w.strip()) > 2)
+
 PHOTO_DIR = Path(__file__).parent / "media" / "photos"
 
 
@@ -572,7 +580,7 @@ def _photo_cache_key(query: str, kind: str = "photo") -> str:
     return hashlib.sha1(f"{kind}:{prov}:{query.strip().lower()}".encode()).hexdigest()[:16]
 
 
-def _pexels_search(query: str, key: str) -> dict | None:
+def _pexels_search(query: str, key: str, subject: list[str] | None = None) -> dict | None:
     r = httpx.get("https://api.pexels.com/v1/search", params={"query": query, "per_page": 10, "orientation": "square", "size": "large"},
                   headers={"Authorization": key}, timeout=15)
     r.raise_for_status()
@@ -581,19 +589,20 @@ def _pexels_search(query: str, key: str) -> dict | None:
         r = httpx.get("https://api.pexels.com/v1/search", params={"query": query, "per_page": 6}, headers={"Authorization": key}, timeout=15)
         r.raise_for_status()
         photos = r.json().get("photos") or []
+    photos = [p for p in photos if _on_subject((p.get("alt") or "") + " " + (p.get("url") or ""), subject)]
     photos.sort(key=lambda p: -_overlap(query, (p.get("alt") or "") + " " + (p.get("url") or "")))
     return [{"url": p["src"].get("large2x") or p["src"]["large"], "credit": f"{p.get('photographer', 'Pexels')} / Pexels",
              "source_url": p.get("url", ""), "provider": "pexels"} for p in photos] or None
 
 
-def _wikimedia_search(query: str) -> dict | None:
+def _wikimedia_search(query: str, subject: list[str] | None = None) -> dict | None:
     for attempt in range(3):
         r = _wikimedia_get(query)
         if r.status_code != 429:
             break
         time.sleep(2.5 * (attempt + 1))  # Commons rate-limits bursts; back off and retry
     r.raise_for_status()
-    return _wikimedia_pick(query, r)
+    return _wikimedia_pick(query, r, subject)
 
 
 def _wikimedia_get(query: str):
@@ -603,9 +612,14 @@ def _wikimedia_get(query: str):
                   headers={"User-Agent": "GhostAgency/1.0 (hackathon demo)"}, timeout=20)
 
 
-def _wikimedia_pick(query: str, r) -> dict | None:
+def _wikimedia_pick(query: str, r, subject: list[str] | None = None) -> dict | None:
     pages = list((r.json().get("query") or {}).get("pages", {}).values())
     pages = [p for p in pages if p.get("imageinfo") and (p["imageinfo"][0].get("width") or 0) >= 1000]
+    if subject:
+        def _txt(pg):
+            meta = pg["imageinfo"][0].get("extmetadata") or {}
+            return pg.get("title", "") + " " + (meta.get("ImageDescription") or {}).get("value", "") + " " + (meta.get("Categories") or {}).get("value", "")
+        pages = [p for p in pages if _on_subject(_txt(p), subject)]
     if not pages:
         return None
     words = [w for w in query.lower().split() if len(w) > 2]
@@ -647,15 +661,16 @@ def _download(url: str, dest_dir: Path) -> Path | None:
     return path
 
 
-def find_photo(query: str, exclude: set[str] | None = None) -> dict | None:
+def find_photo(query: str, exclude: set[str] | None = None, subject: list[str] | None = None) -> dict | None:
     """Real photo for a query -> {path, credit, source_url, provider, url}; candidates cached on
     disk, files cached by URL. `exclude` = photo URLs already used elsewhere in the campaign."""
     query = " ".join((query or "").split())[:80]
     if not query or env_flag("NO_PHOTOS"):
         return None
     exclude = exclude or set()
+    subject = [w.strip().lower() for w in (subject or []) if w and w.strip()]
     PHOTO_DIR.mkdir(parents=True, exist_ok=True)
-    key = _photo_cache_key(query)
+    key = _photo_cache_key(query + ("|" + ",".join(sorted(subject)) if subject else ""))
     cand_path = PHOTO_DIR / f"{key}.json"
     candidates: list[dict] | None = None
     if cand_path.exists():
@@ -664,12 +679,14 @@ def find_photo(query: str, exclude: set[str] | None = None) -> dict | None:
         providers = []
         pexels_key = os.environ.get("PEXELS_API_KEY", "").strip()
         if pexels_key:
-            providers.append(lambda: _pexels_search(query, pexels_key))
+            providers.append(lambda: _pexels_search(query, pexels_key, subject))
+            for sw in subject[:2]:  # on-subject but plainer queries before giving up
+                providers.append(lambda q=f"{sw} {query.split()[-1]}" if query.split() else sw: _pexels_search(q, pexels_key, subject))
         words = query.split()
         for n in range(len(words), max(0, min(2, len(words)) - 1), -1):  # keyless fallback: relax to at least 2 words
-            providers.append(lambda q=" ".join(words[:n]): _wikimedia_search(q))
+            providers.append(lambda q=" ".join(words[:n]): _wikimedia_search(q, subject))
         if len(words) > 1:
-            providers.append(lambda q=words[0]: _wikimedia_search(q))  # last resort: the subject alone
+            providers.append(lambda q=words[0]: _wikimedia_search(q, subject))  # last resort: the subject alone
         for prov in providers:
             try:
                 hits = prov()
@@ -704,14 +721,15 @@ def photo_data_uri(path: str) -> str:
 CLIP_DIR = Path(__file__).parent / "media" / "clips"
 
 
-def find_video(query: str, max_seconds: int = 30, exclude: set[str] | None = None) -> dict | None:
+def find_video(query: str, max_seconds: int = 30, exclude: set[str] | None = None, subject: list[str] | None = None) -> dict | None:
     """Real licensed clip for a query -> {path, credit, source_url, duration, provider}; cached. Pexels only."""
     query = " ".join((query or "").split())[:80]
     key = os.environ.get("PEXELS_API_KEY", "").strip()
     if not query or not key or env_flag("NO_PHOTOS"):
         return None
     CLIP_DIR.mkdir(parents=True, exist_ok=True)
-    ck = _photo_cache_key(query, "clip")
+    subject = [w.strip().lower() for w in (subject or []) if w and w.strip()]
+    ck = _photo_cache_key(query + ("|" + ",".join(sorted(subject)) if subject else ""), "clip")
     meta_path = CLIP_DIR / f"{ck}.json"
     if meta_path.exists() and not exclude:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
@@ -721,6 +739,7 @@ def find_video(query: str, max_seconds: int = 30, exclude: set[str] | None = Non
         exclude = exclude or set()
         words = query.split()
         tries = [" ".join(words[:n]) for n in range(len(words), 1, -1)] or [query]
+        tries += [f"{sw} {words[-1]}" if words else sw for sw in subject[:2]] + subject[:2]
         best, best_score = None, -1
         for q in tries:
             for orientation in ("square", "landscape"):
@@ -731,7 +750,9 @@ def find_video(query: str, max_seconds: int = 30, exclude: set[str] | None = Non
                 vids = [v for v in r.json().get("videos", []) if 3 <= (v.get("duration") or 0) <= max_seconds
                         and v.get("url") not in exclude]
                 for v in vids:  # the URL slug describes the clip: "…/video/man-riding-a-bicycle-at-night-1234/"
-                    sc = _overlap(query, v.get("url", ""))
+                    if not _on_subject(v.get("url", ""), subject):
+                        continue
+                    sc = _overlap(query, v.get("url", "")) + (1 if subject else 0)
                     if sc > best_score:
                         best, best_score = v, sc
                 if best_score >= 2:

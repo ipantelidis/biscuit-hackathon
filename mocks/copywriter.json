@@ -1,0 +1,8 @@
+{
+  "items": [
+    {"channel": "x", "headline": "Lost 3 bike lights this year? Same.", "body": "Amsterdam charges a theft tax and it is called 'buying new lights again'. Nachtfiets: EUR 9/month, stolen lights replaced within 24h, free. Waitlist opens for October.", "cta": "Join the waitlist", "hashtags": ["#Amsterdam", "#fiets", "#Nachtfiets"], "rationale": "Hook post that names the shared pain in the first line.", "risk_flags": []},
+    {"channel": "instagram", "headline": "Never ride dark again", "body": "Your lights got stolen. Again.\nWe ship new ones within 24 hours. Free.\nEUR 9 a month. Cancel whenever.\nNachtfiets. Amsterdam only, for now.", "cta": "Link in bio for the waitlist", "hashtags": ["#Nachtfiets", "#Amsterdam", "#fietsen", "#studentlife"], "rationale": "Story post for students, short lines built for the poster format.", "risk_flags": []},
+    {"channel": "linkedin", "headline": "A EUR 60 fine for a EUR 4 light", "body": "Every autumn, thousands of Amsterdam commuters get fined for riding without lights, usually because the lights were stolen the week before. We built Nachtfiets to end that loop: a pair of bright clip lights on subscription, replaced free within 24 hours whenever they disappear. EUR 9 a month. We launch in October and are opening a waitlist today.", "cta": "Join the waitlist", "hashtags": ["#Amsterdam", "#commuting", "#startup"], "rationale": "Offer post with commuter credibility for the LinkedIn audience.", "risk_flags": ["unverified claim: 'thousands of commuters get fined'"]}
+  ],
+  "message_to_team": "Board, three posts are in your inbox: an X hook, an Instagram story and a LinkedIn offer. I flagged one unverified number on the LinkedIn post. Kofi, posters please."
+}

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghost Agency · Board</title>
+<style>
+  :root {
+    --paper:#f6f4ef; --paper-2:#efece4; --ink:#161616; --mute:#6f6b63; --line:#d8d4ca;
+    --signal:#e4572e; --ok:#2f7d4a; --report:#2f6f9d; --font:"Helvetica Neue",Helvetica,Arial,Inter,system-ui,sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:14px/1.45 var(--font); display:flex; flex-direction:column; }
+  button { font:inherit; color:var(--ink); background:transparent; border:1px solid var(--ink); border-radius:3px; padding:5px 11px; cursor:pointer; }
+  button:hover { background:var(--ink); color:var(--paper); }
+  button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline:2px solid var(--signal); outline-offset:2px; }
+  button.primary { background:var(--ink); color:var(--paper); }
+  button.primary:hover { background:#000; }
+  button.signal { border-color:var(--signal); color:var(--signal); }
+  button.signal:hover { background:var(--signal); color:#fff; }
+  button:disabled { opacity:.4; cursor:default; }
+  button:disabled:hover { background:transparent; color:var(--ink); }
+  input, textarea { font:inherit; border:1px solid var(--line); background:#fff; padding:5px 8px; border-radius:3px; color:var(--ink); }
+  h2 { font-size:13px; font-weight:600; margin:0; letter-spacing:.01em; color:var(--mute); }
+  a { color:inherit; }
+  .mute { color:var(--mute); }
+  .small { font-size:12px; }
+
+  header { display:flex; align-items:center; gap:18px; padding:12px 20px; border-bottom:1px solid var(--ink); background:var(--paper); }
+  header .brand { font-weight:700; font-size:16px; letter-spacing:-.01em; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--line); vertical-align:middle; margin-right:6px; }
+  .dot.idle { background:#b8b3a8; }
+  .dot.working { background:var(--signal); animation:pulse 1.1s ease-in-out infinite; }
+  .dot.blocked { background:var(--signal); box-shadow:0 0 0 2px #fff, 0 0 0 3px var(--signal); }
+  .dot.paused { background:repeating-linear-gradient(45deg,#b8b3a8 0 2px,transparent 2px 4px); border:1px solid #8a857b; }
+  .dot.running { background:var(--ok); }
+  @keyframes pulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.5); opacity:.55; } }
+  .meter { display:flex; align-items:center; gap:10px; }
+  .bar { width:140px; height:8px; border:1px solid var(--ink); border-radius:2px; overflow:hidden; background:#fff; }
+  .bar > i { display:block; height:100%; background:var(--ink); width:0%; transition:width .6s; }
+  .bar.warn > i { background:#d9a400; } .bar.crit > i { background:var(--signal); }
+  .spacer { flex:1; }
+  .tag { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-size:11px; color:var(--mute); }
+
+  .cols { display:grid; grid-template-columns:260px 1fr 380px; gap:0; flex:1; min-height:0; border-bottom:1px solid var(--ink); }
+  .col { display:flex; flex-direction:column; min-height:0; border-right:1px solid var(--line); }
+  .col:last-child { border-right:0; }
+  .col > .head { padding:10px 16px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+  .col > .body { overflow:auto; padding:12px 16px; flex:1; }
+
+  .agent { padding:9px 0; border-bottom:1px solid var(--line); }
+  .agent:last-child { border-bottom:0; }
+  .agent .name { font-weight:600; }
+  .agent .task { color:var(--mute); font-size:12px; margin-top:2px; min-height:16px; }
+  .agent .cost { color:var(--mute); font-size:11px; margin-top:2px; font-variant-numeric:tabular-nums; }
+
+  .msg { padding:7px 0; border-bottom:1px dotted var(--line); display:grid; grid-template-columns:52px 1fr; gap:10px; }
+  .msg time { color:var(--mute); font-size:11px; padding-top:2px; font-variant-numeric:tabular-nums; }
+  .msg .who { font-weight:600; font-size:12px; }
+  .msg .who .kind { font-weight:400; color:var(--mute); }
+  .msg.alert .who { color:var(--signal); }
+  .msg.report .who { color:var(--report); }
+  .msg.handoff .who .kind { color:var(--report); }
+  .msg.report .text { border-left:2px solid var(--report); padding-left:8px; }
+  .msg.alert .text { border-left:2px solid var(--signal); padding-left:8px; }
+  .msg .text { white-space:pre-wrap; }
+
+  .card { border:1px solid var(--ink); background:#fff; margin-bottom:14px; }
+  .card .top { display:flex; gap:12px; padding:12px; }
+  .card img { width:96px; height:96px; flex:none; border:1px solid var(--line); }
+  .card .h { font-weight:600; margin-bottom:4px; }
+  .card .b { white-space:pre-wrap; font-size:13px; max-height:130px; overflow:auto; }
+  .card .why { color:var(--mute); font-size:12px; margin-top:6px; }
+  .card .flags { margin-top:6px; }
+  .flag { display:inline-block; font-size:11px; color:var(--signal); border:1px solid var(--signal); border-radius:999px; padding:0 7px; margin-right:4px; }
+  .card .actions { display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--line); align-items:center; flex-wrap:wrap; }
+  .card .actions input { flex:1; min-width:120px; }
+
+  .bottom { display:grid; grid-template-columns:minmax(300px,1.2fr) 2fr; gap:0; height:330px; }
+  .bottom .col { border-right:1px solid var(--line); }
+  .pipeline .round { margin-bottom:10px; }
+  .pipeline .round-title { font-size:11px; color:var(--mute); margin-bottom:4px; }
+  .task { display:flex; align-items:center; gap:8px; padding:3px 0; font-size:13px; }
+  .task .st { font-size:11px; color:var(--mute); border:1px solid var(--line); border-radius:999px; padding:0 7px; white-space:nowrap; }
+  .task .st.done { border-color:var(--ok); color:var(--ok); }
+  .task .st.running { border-color:var(--signal); color:var(--signal); }
+  .task .st.failed { background:var(--signal); color:#fff; border-color:var(--signal); }
+  .task .st.waiting_human { border-color:var(--ink); color:var(--ink); }
+  .task button { padding:1px 7px; font-size:11px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+  .post { border:1px solid var(--line); background:#fff; font-size:12px; }
+  .post img { width:100%; aspect-ratio:1/1; display:block; border-bottom:1px solid var(--line); }
+  .post .noimg { aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; color:var(--mute); border-bottom:1px solid var(--line); background:var(--paper-2); }
+  .post .in { padding:7px 8px; }
+  .post .in .h { font-weight:600; margin:2px 0 3px; }
+  .post .m { color:var(--mute); font-size:11px; font-variant-numeric:tabular-nums; }
+  .post.vetoed { opacity:.5; }
+  .post .status { font-size:11px; color:var(--mute); }
+  .post .status.published { color:var(--ok); }
+  .post .status.vetoed { color:var(--signal); }
+  .empty { color:var(--mute); padding:8px 0; }
+  details { margin-top:10px; }
+  summary { cursor:pointer; color:var(--mute); font-size:12px; }
+  textarea { width:100%; height:120px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; margin:6px 0; }
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  @media (max-width:1100px) { .cols { grid-template-columns:1fr; } .bottom { grid-template-columns:1fr; height:auto; } .col { border-right:0; border-bottom:1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Ghost Agency</span>
+  <span id="company-status"><i class="dot idle"></i><span>starting</span></span>
+  <span class="meter"><span id="spend-text" class="small">€0.00 / €0.00</span><span class="bar" id="spend-bar"><i></i></span></span>
+  <span class="tag" id="mode-tag">mock</span>
+  <span class="spacer"></span>
+  <button id="btn-pause">Pause</button>
+  <button id="btn-reset">Reset</button>
+</header>
+
+<section class="cols">
+  <div class="col">
+    <div class="head"><h2>Org chart</h2><span class="small mute">8 agents · 0 humans</span></div>
+    <div class="body" id="org"></div>
+  </div>
+  <div class="col">
+    <div class="head"><h2>Team channel</h2><span class="small mute" id="bus-count"></span></div>
+    <div class="body" id="bus"><div class="empty">Quiet. Nobody has anything to say until there is a brief.</div></div>
+  </div>
+  <div class="col">
+    <div class="head"><h2>Board inbox</h2><span class="small mute" id="inbox-count"></span></div>
+    <div class="body" id="inbox"><div class="empty">Nothing to approve.</div></div>
+  </div>
+</section>
+
+<section class="bottom">
+  <div class="col">
+    <div class="head"><h2 id="campaign-title">Campaign</h2><span class="small mute" id="brief-status"></span></div>
+    <div class="body">
+      <div class="toolbar">
+        <button id="btn-demo" class="primary">Paste demo brief</button>
+        <button id="btn-demo2">Second brief</button>
+        <button id="btn-day" class="signal" disabled>Simulate day →</button>
+        <a id="campaign-link" class="small" href="#" target="_blank" hidden>open campaign page ↗</a>
+      </div>
+      <details><summary>Custom brief (JSON)</summary>
+        <textarea id="brief-json"></textarea>
+        <button id="btn-brief">Submit brief</button>
+      </details>
+      <div class="pipeline" id="pipeline"></div>
+    </div>
+  </div>
+  <div class="col">
+    <div class="head"><h2>Content</h2><span class="small mute" id="content-count"></span></div>
+    <div class="body"><div class="grid" id="content"><div class="empty">No brief yet. Paste the demo brief to start the company.</div></div></div>
+  </div>
+</section>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const eur = (v) => '€' + (Number(v) || 0).toFixed(2);
+const NAMES = {ceo:'Iris',researcher:'Nora',strategist:'Bram',copywriter:'Lena',designer:'Kofi',publisher:'Tariq',analyst:'Mei',cfo:'Otto',board:'Board',all:'everyone'};
+const who = (k) => NAMES[k] || k;
+
+let seenMsgs = new Set();
+let state = null;
+let vetoOpen = new Set();
+
+async function api(path, body) {
+  const r = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  if (!r.ok) { const t = await r.text(); alert(`${path}: ${r.status} ${t}`); throw new Error(t); }
+  return r.json();
+}
+
+function renderHeader(s) {
+  const c = s.company;
+  $('#company-status').innerHTML = c.paused
+    ? '<i class="dot paused"></i><span>paused by the board</span>'
+    : '<i class="dot running"></i><span>running</span>';
+  $('#btn-pause').textContent = c.paused ? 'Resume' : 'Pause';
+  const pct = c.budget_eur ? Math.min(100, 100 * c.spent_eur / c.budget_eur) : 0;
+  $('#spend-text').textContent = `${eur(c.spent_eur)} / ${eur(c.budget_eur)}`;
+  const bar = $('#spend-bar'); bar.querySelector('i').style.width = pct + '%';
+  bar.className = 'bar' + (pct >= 100 ? ' crit' : pct >= 80 ? ' warn' : '');
+  $('#mode-tag').textContent = s.mock.llm ? 'mock mode' : s.model;
+}
+
+function renderOrg(s) {
+  $('#org').innerHTML = s.agents.map(a => `
+    <div class="agent">
+      <div><i class="dot ${a.status}"></i><span class="name">${esc(a.display_name)}</span></div>
+      <div class="task">${a.status === 'working' ? esc(a.current_task_title || 'working…') : a.status === 'blocked' ? 'blocked — needs a retry' : a.status === 'paused' ? 'paused' : esc(a.role_summary)}</div>
+      <div class="cost">${(a.tokens_in + a.tokens_out).toLocaleString()} tokens · ${eur(a.cost_eur)}</div>
+    </div>`).join('');
+}
+
+function renderBus(s) {
+  const bus = $('#bus');
+  if (!s.messages.length) { bus.innerHTML = '<div class="empty">Quiet. Nobody has anything to say until there is a brief.</div>'; seenMsgs = new Set(); return; }
+  if (bus.querySelector('.empty')) bus.innerHTML = '';
+  const ids = new Set(s.messages.map(m => m.id));
+  if ([...seenMsgs].some(id => !ids.has(id)) && seenMsgs.size > 60) { /* older than window: keep */ }
+  const nearBottom = bus.scrollHeight - bus.scrollTop - bus.clientHeight < 60;
+  let added = false;
+  for (const m of s.messages) {
+    if (seenMsgs.has(m.id)) continue;
+    seenMsgs.add(m.id); added = true;
+    const t = new Date(m.created_at);
+    const el = document.createElement('div');
+    el.className = 'msg ' + m.kind;
+    el.innerHTML = `<time>${t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})}</time>
+      <div><div class="who">${esc(who(m.from_agent))} → ${esc(who(m.to_agent))} <span class="kind">· ${esc(m.kind)}</span></div><div class="text">${esc(m.body)}</div></div>`;
+    bus.appendChild(el);
+  }
+  if (added && nearBottom) bus.scrollTop = bus.scrollHeight;
+  $('#bus-count').textContent = `${s.messages.length} messages`;
+}
+
+let inboxKey = '';
+function renderInbox(s, force) {
+  const box = $('#inbox');
+  const items = s.pending_approvals;
+  const key = items.map(c => c.id + (c.has_asset ? '+' : '-')).join(',') + '|' + [...vetoOpen].join(',') + '|' + !!s.brief;
+  if (!force && key === inboxKey) return;
+  inboxKey = key;
+  $('#inbox-count').textContent = items.length ? `${items.length} awaiting decision` : '';
+  if (!items.length) { box.innerHTML = '<div class="empty">Nothing to approve.' + (s.brief ? ' Posts land here when Lena is done.' : '') + '</div>'; return; }
+  box.innerHTML = items.map(c => `
+    <div class="card" data-id="${c.id}">
+      <div class="top">
+        ${c.has_asset ? `<img src="/api/content/${c.id}/asset.svg" alt="">` : ''}
+        <div style="min-width:0;flex:1">
+          <div class="small mute"><span class="tag">${esc(c.channel)}</span> round ${c.round}</div>
+          <div class="h">${esc(c.headline)}</div>
+          <div class="b">${esc(c.body)}</div>
+          <div class="why">${esc(c.cta)} · ${esc(c.rationale)}</div>
+          <div class="flags">${(c.risk_flags || []).map(f => `<span class="flag">${esc(f)}</span>`).join('')}</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" data-act="approved">Approve</button>
+        <button class="signal" data-act="veto">Veto</button>
+        ${vetoOpen.has(c.id) ? `<input placeholder="note for Lena (optional)" data-note> <button data-act="vetoed">Send veto</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function renderPipeline(s) {
+  const b = s.brief;
+  $('#campaign-title').textContent = b ? `${b.product_name} · ${b.campaign_name || 'planning…'}` : 'Campaign';
+  $('#brief-status').textContent = b ? `${b.status}${b.day ? ' · day ' + b.day : ''}` : '';
+  const link = $('#campaign-link');
+  if (b) { link.href = `/campaign/${b.id}`; link.hidden = false; } else link.hidden = true;
+  const published = s.content.some(c => c.status === 'published');
+  const analystBusy = s.tasks.some(t => t.agent_key === 'analyst' && ['ready','running'].includes(t.status));
+  $('#btn-day').disabled = !b || !published || analystBusy || !!s.company.paused;
+  const rounds = {};
+  for (const t of s.tasks) (rounds[t.round] ||= []).push(t);
+  $('#pipeline').innerHTML = Object.keys(rounds).sort().map(r => `
+    <div class="round"><div class="round-title">round ${r}</div>
+      ${rounds[r].map(t => `<div class="task"><span class="st ${t.status}">${t.status === 'waiting_human' ? 'waiting for board' : t.status.replace('_',' ')}</span>
+        <span>${esc(who(t.agent_key))}: ${esc(t.title)}</span>
+        ${t.status === 'failed' ? `<button data-retry="${t.id}" title="${esc(t.error || '')}">Retry</button>` : ''}</div>`).join('')}
+    </div>`).join('') || (b ? '<div class="empty">Iris is reading the brief…</div>' : '');
+}
+
+function renderContent(s) {
+  const grid = $('#content');
+  if (!s.brief) { grid.innerHTML = '<div class="empty">No brief yet. Paste the demo brief to start the company.</div>'; $('#content-count').textContent = ''; return; }
+  if (!s.content.length) { grid.innerHTML = '<div class="empty">No posts yet.</div>'; $('#content-count').textContent = ''; return; }
+  $('#content-count').textContent = `${s.content.filter(c => c.status === 'published').length} published · ${s.content.length} total`;
+  grid.innerHTML = s.content.map(c => `
+    <div class="post ${c.status}">
+      ${c.has_asset ? `<img src="/api/content/${c.id}/asset.svg" alt="">` : '<div class="noimg">poster pending</div>'}
+      <div class="in">
+        <div class="status ${c.status}">${esc(c.channel)} · ${esc(c.status.replace('_',' '))}${c.round > 1 ? ' · <span style="color:var(--signal)">revised</span>' : ''}</div>
+        <div class="h">${esc(c.headline)}</div>
+        ${c.metrics ? `<div class="m">${c.metrics.impressions.toLocaleString()} imp · ${c.metrics.ctr}% CTR · ${c.metrics.likes} likes · ${c.metrics.signups} signups</div>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function render(s) {
+  state = s;
+  renderHeader(s); renderOrg(s); renderBus(s); renderInbox(s); renderPipeline(s); renderContent(s);
+}
+
+async function poll() {
+  try { const r = await fetch('/api/state'); if (r.ok) render(await r.json()); }
+  catch (e) { console.warn(e); }
+}
+
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('button'); if (!btn) return;
+  if (btn.id === 'btn-pause') { await api(state.company.paused ? '/api/company/resume' : '/api/company/pause'); return poll(); }
+  if (btn.id === 'btn-reset') { if (confirm('Wipe the campaign and start over? Agents and budget stay.')) { await api('/api/reset'); seenMsgs = new Set(); vetoOpen = new Set(); $('#bus').innerHTML = ''; return poll(); } return; }
+  if (btn.id === 'btn-demo') { await api('/api/briefs/demo?which=1'); return poll(); }
+  if (btn.id === 'btn-demo2') { await api('/api/briefs/demo?which=2'); return poll(); }
+  if (btn.id === 'btn-brief') { let b; try { b = JSON.parse($('#brief-json').value); } catch { return alert('Brief is not valid JSON'); } await api('/api/briefs', b); return poll(); }
+  if (btn.id === 'btn-day') { btn.disabled = true; await api(`/api/briefs/${state.brief.id}/simulate_day`); return poll(); }
+  if (btn.dataset.retry) { await api(`/api/tasks/${btn.dataset.retry}/retry`); return poll(); }
+  const card = btn.closest('.card'); if (!card) return;
+  const id = card.dataset.id;
+  if (btn.dataset.act === 'veto') { vetoOpen.add(id); renderInbox(state, true); card && $(`.card[data-id="${id}"] [data-note]`)?.focus(); return; }
+  if (btn.dataset.act === 'approved' || btn.dataset.act === 'vetoed') {
+    const note = card.querySelector('[data-note]')?.value || '';
+    vetoOpen.delete(id);
+    await api(`/api/approvals/${id}`, {decision: btn.dataset.act, note});
+    return poll();
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.matches('[data-note]')) e.target.closest('.card').querySelector('[data-act="vetoed"]').click();
+});
+
+$('#brief-json').value = JSON.stringify({product_name:'', one_liner:'', description:'', audience:'', goals:'', budget_eur:500, tone:'', channels:['instagram','linkedin','x']}, null, 2);
+poll();
+setInterval(poll, 2000);
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "memo": "We have crossed 80 percent of the budget. Remaining planned tasks would push us close to the ceiling. I recommend reducing scope: fewer posts per round and no further research calls until the board raises the budget.",
+  "burn_assessment": "warning",
+  "action": "reduce_scope",
+  "message_to_team": "Board, we are past 80 percent of budget. I am recommending reduced scope; the runtime will pause us automatically at 100 percent."
+}

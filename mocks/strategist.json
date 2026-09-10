@@ -1,0 +1,16 @@
+{
+  "positioning": "Nachtfiets is the end of buying bike lights: EUR 9 a month and you never ride dark again, even after a theft.",
+  "key_messages": ["Stolen? Replaced within 24 hours, free", "EUR 9 a month beats a EUR 60 fine", "Never buy bike lights again"],
+  "channels": [
+    {"channel": "instagram", "role": "Cheeky awareness for students", "cadence": "3 posts per week"},
+    {"channel": "x", "role": "Fast jokes and theft stories", "cadence": "daily"},
+    {"channel": "linkedin", "role": "Commuter and founder credibility", "cadence": "2 posts per week"}
+  ],
+  "two_week_plan": [
+    {"week": 1, "focus": "Name the pain: the theft tax", "posts": 6},
+    {"week": 2, "focus": "The promise: 24h replacement, October launch", "posts": 6}
+  ],
+  "success_metric": "300 waitlist signups by day 14, tracked from campaign page clicks",
+  "changes_from_previous_round": "",
+  "message_to_team": "Lena, plan is set: we own the phrase 'theft tax'. Instagram for students, X for jokes, LinkedIn for commuters. One post per channel, lead with the 24h replacement promise."
+}

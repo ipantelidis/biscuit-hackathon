@@ -1,0 +1,10 @@
+{
+  "product_name": "Factuurtje",
+  "one_liner": "Invoicing for Dutch freelancers that chases late payers for you, politely, until they pay.",
+  "description": "Factuurtje creates KVK- and BTW-compliant invoices in one click and then follows up automatically: friendly reminder at day 14, firmer at day 30, a formal notice at day 45. Freelancers get paid on average 11 days faster. €12/month, first 3 invoices free.",
+  "audience": "Dutch ZZP'ers (freelancers) in creative and consulting work who hate chasing invoices.",
+  "goals": "150 paying signups in the first month.",
+  "budget_eur": 800,
+  "tone": "calm, practical, dry humour, no hype",
+  "channels": ["linkedin", "x", "instagram"]
+}

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ brief.product_name }} · {{ brief.campaign_name or 'Campaign' }}</title>
+<style>
+  :root { --paper:#f6f4ef; --ink:#161616; --mute:#6b6862; --line:#d9d5cc; --signal:#e4572e; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:"Helvetica Neue",Helvetica,Arial,Inter,system-ui,sans-serif; line-height:1.45; }
+  main { max-width:1100px; margin:0 auto; padding:48px 24px 80px; }
+  header { border-bottom:1px solid var(--ink); padding-bottom:28px; margin-bottom:36px; }
+  .eyebrow { font-size:13px; color:var(--mute); letter-spacing:.02em; margin:0 0 10px; }
+  h1 { font-size:clamp(32px,5vw,56px); line-height:1.05; margin:0 0 16px; letter-spacing:-.02em; }
+  .intro { font-size:19px; max-width:640px; margin:0; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:28px; }
+  article { border:1px solid var(--line); background:#fff; display:flex; flex-direction:column; }
+  article img { width:100%; aspect-ratio:1/1; display:block; border-bottom:1px solid var(--line); }
+  .meta { display:flex; justify-content:space-between; align-items:center; padding:12px 16px 0; font-size:12px; color:var(--mute); }
+  .badge { border:1px solid var(--ink); border-radius:999px; padding:2px 9px; color:var(--ink); }
+  .revised { color:var(--signal); border-color:var(--signal); }
+  .post { padding:10px 16px 16px; }
+  .post h2 { font-size:18px; margin:6px 0 8px; letter-spacing:-.01em; }
+  .post p { margin:0 0 10px; white-space:pre-line; font-size:15px; }
+  .cta { font-weight:600; }
+  .tags { color:var(--mute); font-size:13px; }
+  .metrics { margin-top:auto; border-top:1px dashed var(--line); padding:10px 16px; font-size:13px; color:var(--mute); }
+  .metrics b { color:var(--ink); font-weight:600; }
+  footer { margin-top:64px; border-top:1px solid var(--ink); padding-top:20px; font-size:14px; color:var(--mute); }
+  .empty { border:1px dashed var(--line); padding:40px; text-align:center; color:var(--mute); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">{{ brief.product_name }} · {{ brief.campaign_name or 'Campaign' }}{% if day %} · day {{ day }}{% endif %}</p>
+    <h1>{{ brief.campaign_headline or brief.one_liner }}</h1>
+    {% if brief.campaign_intro %}<p class="intro">{{ brief.campaign_intro }}</p>{% endif %}
+  </header>
+
+  {% if posts %}
+  <section class="grid">
+    {% for p in posts %}
+    <article>
+      {% if p.asset_id %}<img src="/api/content/{{ p.id }}/asset.svg" alt="{{ p.headline }}">{% endif %}
+      <div class="meta">
+        <span class="badge">{{ p.channel }}</span>
+        <span>{% if p.round > 1 %}<span class="badge revised">revised after day {{ p.round - 1 }}</span> {% endif %}published {{ p.publish_slot or 'Day 1' }}</span>
+      </div>
+      <div class="post">
+        <h2>{{ p.headline }}</h2>
+        <p>{{ p.body }}</p>
+        {% if p.cta %}<p class="cta">{{ p.cta }} →</p>{% endif %}
+        {% if p.hashtags %}<p class="tags">{{ p.hashtags | join(' ') }}</p>{% endif %}
+      </div>
+      {% if p.metrics %}
+      <div class="metrics"><b>{{ '{:,}'.format(p.metrics.impressions) }}</b> impressions · <b>{{ p.metrics.ctr }}%</b> CTR · <b>{{ p.metrics.likes }}</b> likes{% if p.metrics.days > 1 %} · {{ p.metrics.days }} days{% endif %}</div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  <div class="empty">Nothing published yet. The board is still reviewing.</div>
+  {% endif %}
+
+  <footer>Produced by Ghost Agency. No humans were employed in the making of this campaign.</footer>
+</main>
+</body>
+</html>

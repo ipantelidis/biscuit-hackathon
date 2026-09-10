@@ -1,0 +1,21 @@
+{
+  "market_summary": "Amsterdam has more bikes than people and bike-light theft is a running joke among commuters and students. Cheap clip-on lights from supermarkets and AliExpress dominate; they are treated as disposable. Premium brands sell durability but not replacement. Nobody sells peace of mind as a subscription, so the category is open. Fines for riding without lights add urgency in autumn.",
+  "competitors": [
+    {"name": "HEMA / Action clip lights", "positioning": "Cheap and everywhere", "weakness": "Dim, break fast, stolen constantly, no support"},
+    {"name": "Knog", "positioning": "Design-led premium lights", "weakness": "EUR 40+ per set, painful to lose, no replacement"},
+    {"name": "Swapfiets", "positioning": "Bike subscription with repairs", "weakness": "Only covers their own bikes; lights are an afterthought"}
+  ],
+  "personas": [
+    {"name": "Sanne, 24, student", "who": "Cycles daily to UvA, has lost four sets of lights this year", "pain": "Buying lights again feels like paying a theft tax", "hook": "Stop paying the theft tax"},
+    {"name": "Daan, 31, commuter", "who": "Rides Noord to Zuidas, wants zero admin", "pain": "Got a EUR 60 fine for a dead light", "hook": "Never get fined for a light again"}
+  ],
+  "insights": [
+    "Light theft is a shared Amsterdam experience; jokes about it travel fast on social",
+    "The autumn fine season (October) is the natural launch moment",
+    "Subscription framing works when it removes a chore, not when it adds one",
+    "Students respond to cheeky tone; commuters respond to zero-hassle promises"
+  ],
+  "sources": ["https://www.amsterdam.nl/en/traffic-transport/cycling/", "https://www.fietsersbond.nl/"],
+  "confidence": "medium",
+  "message_to_team": "Bram, research is in: light theft is a shared Amsterdam joke and nobody sells replacement as a service. Two personas, Sanne the student and Daan the commuter. October fines are our timing hook."
+}

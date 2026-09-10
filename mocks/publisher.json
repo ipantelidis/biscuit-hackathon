@@ -1,0 +1,11 @@
+{
+  "campaign_headline": "Never ride dark again",
+  "campaign_intro": "Amsterdam steals bike lights like it rains: constantly. Nachtfiets is a EUR 9 a month subscription that replaces your lights free within 24 hours whenever they vanish. We launch in October. Join the waitlist and stop paying the theft tax.",
+  "schedule": [
+    {"content_index": 0, "publish_slot": "Day 1 09:00", "channel": "x"},
+    {"content_index": 1, "publish_slot": "Day 1 12:30", "channel": "instagram"},
+    {"content_index": 2, "publish_slot": "Day 2 08:30", "channel": "linkedin"},
+    {"content_index": 3, "publish_slot": "Day 3 09:00", "channel": "x"}
+  ],
+  "message_to_team": "Team, approved posts are live on the campaign page and scheduled across the first three mornings. Board, the campaign link is on the dashboard. Mei, metrics are yours once the first day is in."
+}

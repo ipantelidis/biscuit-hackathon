@@ -35,6 +35,12 @@ def test_long_headline_fits():
         _assert_fits(spec, layout)
 
 
-def test_headline_word_cap():
-    a = models.AssetSpec(content_index=0, headline="one two three four five six seven eight nine ten")
-    assert len(a.headline.split()) == 8
+def test_seven_word_headline_is_rejected():
+    import pytest
+    bad = {"assets": [{"content_index": 0, "headline": "one two three four five six seven", "subline": "",
+                       "palette": {"bg": "#111", "fg": "#fff", "accent": "#f00"}, "layout": "stacked", "glyph": "x", "alt_text": ""}],
+           "message_to_team": "m"}
+    with pytest.raises(Exception):
+        models.validate("designer", bad)
+    ok = {**bad, "assets": [{**bad["assets"][0], "headline": "one two three four five six"}]}
+    assert models.validate("designer", ok)["assets"][0]["headline"] == "one two three four five six"

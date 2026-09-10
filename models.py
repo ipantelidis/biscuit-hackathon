@@ -137,9 +137,11 @@ class Palette(BaseModel):
     accent: str = "#ff5a1f"
 
 
-def _clip_words(v: str, n: int) -> str:
-    words = str(v or "").split()
-    return " ".join(words[:n]) if len(words) > n else " ".join(words)
+def _max_words(v: str, n: int, what: str) -> str:
+    v = " ".join(str(v or "").split())
+    if len(v.split()) > n:
+        raise ValueError(f"{what} must be at most {n} words, got {len(v.split())}: {v!r}")
+    return v
 
 
 class AssetSpec(BaseModel):
@@ -151,12 +153,12 @@ class AssetSpec(BaseModel):
     @field_validator("headline")
     @classmethod
     def _head(cls, v: str) -> str:
-        return _clip_words(v, 8)  # the renderer fits anything; the cap keeps posters poster-like
+        return _max_words(v, 6, "headline")  # hard cap; the runtime retries once with this message
 
     @field_validator("subline")
     @classmethod
     def _sub(cls, v: str) -> str:
-        return _clip_words(v, 14)
+        return _max_words(v, 12, "subline")
     palette: Palette = Field(default_factory=Palette)
     layout: Literal["stacked", "split", "badge"] = "stacked"
     glyph: str = "*"

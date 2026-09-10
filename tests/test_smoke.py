@@ -104,8 +104,9 @@ def test_full_loop(client):
     assert all(c["channel"] != "linkedin" for c in published if c["round"] == 3)
     for t in db.query("tasks", "brief_id = ? AND agent_key = 'strategist' AND round >= 2 AND json_extract(input,'$.mode') IS NULL", [bid]):
         assert t["output"]["changes_from_previous_round"]
-    for t in db.query("tasks", "brief_id = ? AND agent_key = 'analyst'", [bid]):
-        assert t["output"]["winner_id"] and t["output"]["loser_id"]
+    ranked = sorted(runtime.published_ranking(bid), key=lambda p: -(p["ctr_per_day"] or 0))
+    latest_analyst = db.query("tasks", "brief_id = ? AND agent_key = 'analyst'", [bid], order="created_at DESC", limit=1)[0]
+    assert latest_analyst["output"]["winner_id"] == ranked[0]["id"]
 
     # day 3: hold, then the mock ceiling
     client.post(f"/api/briefs/{bid}/simulate_day")

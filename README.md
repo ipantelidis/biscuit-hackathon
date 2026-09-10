@@ -99,7 +99,8 @@ day opens with a standup, and vetoed posts feed back into the next round's brief
 - **Veto routing.** A veto note goes to Lena, Kofi or both (chips on the veto form; the default is guessed
   from the note). A design-only veto sends the post back to Kofi for a new poster instead of killing it.
   Notes expire after one round for copy and two for design.
-- **Posters that fit.** Headlines and sublines are shrunk to fit their column; nothing overflows.
+- **Posters that fit.** Headlines are capped at 6 words and sublines at 12 (the designer is asked again
+  otherwise), then shrunk to fit their column; nothing overflows.
 - **Mock mode** supports three simulated days and says so on the fourth.
 
 ## Demo script (5 minutes)

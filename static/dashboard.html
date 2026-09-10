@@ -670,7 +670,7 @@ async function poll() { try { const r = await fetch('/api/state'); if (r.ok) ren
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('button'); if (!btn || !state) return;
   if (btn.id === 'btn-pause') { await api(state.company.paused ? '/api/company/resume' : '/api/company/pause'); return poll(); }
-  if (btn.id === 'btn-reset') { if (confirm('Wipe the campaign and start over? Agents and budget stay.')) { await api('/api/reset'); seenMsgs = new Set(); vetoOpen = new Set(); inboxKey = contentKey = orgKey = flowKey = commKey = chatKey = ''; $('#bus').innerHTML = ''; return poll(); } return; }
+  if (btn.id === 'btn-reset') { if (confirm('Wipe the campaign and start over? Agents and budget stay.')) { await api('/api/reset'); seenMsgs = new Set(); vetoOpen = new Set(); inboxKey = contentKey = orgKey = flowKey = commKey = chatKey = null; $('#bus').innerHTML = ''; return poll(); } return; }
   if (btn.id === 'btn-demo') { await api('/api/briefs/demo?which=1'); toast('Brief handed to Iris.'); return poll(); }
   if (btn.id === 'btn-demo2') { await api('/api/briefs/demo?which=2'); toast('Second brief handed to Iris.'); return poll(); }
   if (btn.id === 'btn-new') { $('#mock-warn').hidden = !(state && state.mock.llm); $('#brief-dialog').showModal(); return; }

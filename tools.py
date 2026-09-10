@@ -555,6 +555,15 @@ def record_motion_video(html_path: str, seconds: float, out_path: str) -> str:
 
 # ------------------------------------------------------------------ real photography
 
+STOPWORDS = {"the", "a", "an", "of", "in", "at", "on", "with", "and", "dark", "light", "bright", "close-up", "closeup",
+             "shot", "photo", "image", "picture", "view", "scene", "background"}
+
+
+def _overlap(query: str, text: str) -> int:
+    words = [w for w in re.findall(r"[a-z0-9]+", query.lower()) if len(w) > 2 and w not in STOPWORDS]
+    text = text.lower()
+    return sum(1 for w in words if w in text)
+
 PHOTO_DIR = Path(__file__).parent / "media" / "photos"
 
 
@@ -564,7 +573,7 @@ def _photo_cache_key(query: str, kind: str = "photo") -> str:
 
 
 def _pexels_search(query: str, key: str) -> dict | None:
-    r = httpx.get("https://api.pexels.com/v1/search", params={"query": query, "per_page": 6, "orientation": "square", "size": "large"},
+    r = httpx.get("https://api.pexels.com/v1/search", params={"query": query, "per_page": 10, "orientation": "square", "size": "large"},
                   headers={"Authorization": key}, timeout=15)
     r.raise_for_status()
     photos = r.json().get("photos") or []
@@ -572,6 +581,7 @@ def _pexels_search(query: str, key: str) -> dict | None:
         r = httpx.get("https://api.pexels.com/v1/search", params={"query": query, "per_page": 6}, headers={"Authorization": key}, timeout=15)
         r.raise_for_status()
         photos = r.json().get("photos") or []
+    photos.sort(key=lambda p: -_overlap(query, (p.get("alt") or "") + " " + (p.get("url") or "")))
     return [{"url": p["src"].get("large2x") or p["src"]["large"], "credit": f"{p.get('photographer', 'Pexels')} / Pexels",
              "source_url": p.get("url", ""), "provider": "pexels"} for p in photos] or None
 
@@ -708,19 +718,29 @@ def find_video(query: str, max_seconds: int = 30, exclude: set[str] | None = Non
         if Path(meta["path"]).exists():
             return meta
     try:
-        vids = []
-        for orientation in ("square", "landscape"):
-            r = httpx.get("https://api.pexels.com/videos/search",
-                          params={"query": query, "per_page": 8, "orientation": orientation, "size": "medium"},
-                          headers={"Authorization": key}, timeout=20)
-            r.raise_for_status()
-            vids = [v for v in r.json().get("videos", []) if 3 <= (v.get("duration") or 0) <= max_seconds]
-            if vids:
-                break
-        if not vids:
-            return None
         exclude = exclude or set()
-        v = next((x for x in vids if x.get("url") not in exclude), vids[0])
+        words = query.split()
+        tries = [" ".join(words[:n]) for n in range(len(words), 1, -1)] or [query]
+        best, best_score = None, -1
+        for q in tries:
+            for orientation in ("square", "landscape"):
+                r = httpx.get("https://api.pexels.com/videos/search",
+                              params={"query": q, "per_page": 15, "orientation": orientation, "size": "medium"},
+                              headers={"Authorization": key}, timeout=20)
+                r.raise_for_status()
+                vids = [v for v in r.json().get("videos", []) if 3 <= (v.get("duration") or 0) <= max_seconds
+                        and v.get("url") not in exclude]
+                for v in vids:  # the URL slug describes the clip: "…/video/man-riding-a-bicycle-at-night-1234/"
+                    sc = _overlap(query, v.get("url", ""))
+                    if sc > best_score:
+                        best, best_score = v, sc
+                if best_score >= 2:
+                    break
+            if best_score >= 2:
+                break
+        if best is None or best_score < 1:
+            return None  # nothing on topic: the caller falls back to a ranked photo rather than a random clip
+        v = best
         files = [f for f in v["video_files"] if f.get("file_type") == "video/mp4" and (f.get("width") or 0) >= 640]
         files.sort(key=lambda f: abs((f.get("width") or 0) - 960))  # ~960 px: sharp enough, small enough
         f = files[0] if files else v["video_files"][0]

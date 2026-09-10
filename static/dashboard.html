@@ -574,7 +574,7 @@ function renderPipeline(s) {
 let contentKey = null;
 function renderContent(s) {
   const grid = $('#content');
-  const key = (s.brief ? s.brief.id : '-') + '|' + (s.video ? s.video.id + s.video.status : '') + '|' +
+  const key = (s.brief ? s.brief.id : '-') + '|' + (s.video ? s.video.id + s.video.status + (s.video.has_footage ? 'f' : '') : '') + '|' +
     s.content.map(c => c.id + c.status + (c.has_asset ? 'a' : '') + (c.metrics ? c.metrics.impressions : '')).join(',');
   if (key === contentKey) return;
   contentKey = key;
@@ -590,7 +590,7 @@ function renderContent(s) {
   $('#content-count').textContent = `${s.content.filter(c => c.status === 'published').length} live · ${s.content.length} total`;
   const vid = s.video ? `<div class="post video"><div class="poster"><iframe src="/motion/${s.brief.id}?loop=1" title="campaign video"></iframe>
       <div class="ov"><span class="chip acc">video</span><span class="chip ${s.video.status === 'ready' ? 'acc' : s.video.status === 'rendering' ? 'warn' : ''}">${s.video.status === 'ready' ? 'rendered' : s.video.status}</span></div></div>
-      <div class="in"><div class="h">${esc(s.video.title)}</div><div class="m"><span><b>${Math.round(s.video.duration_s || 0)}s</b> · Jonas</span></div></div></div>` : '';
+      <div class="in"><div class="h">${esc(s.video.title)}</div><div class="m"><span><b>${Math.round(s.video.duration_s || 0)}s</b> · Jonas</span><button data-redo-video style="margin-left:auto;padding:1px 8px;font-size:11px;border-radius:6px" title="Ask Jonas for a new cut with real footage">Redo</button></div></div></div>` : '';
   grid.innerHTML = vid + s.content.map(c => `
     <div class="post ${c.status}">
       <div class="poster">${c.has_asset ? `<img src="/api/content/${c.id}/asset.svg" alt="">` : '<div class="noimg">poster pending</div>'}
@@ -678,6 +678,7 @@ document.addEventListener('click', async (e) => {
   if (btn.id === 'brief-fill') { const d = DEMO; const f = $('#brief-form'); for (const k of ['product_name','one_liner','description','audience','goals','tone','budget_eur']) f.elements[k].value = d[k]; return; }
   if (btn.id === 'btn-day') { btn.disabled = true; await api(`/api/briefs/${state.brief.id}/simulate_day`); toast('A day passed. Mei is reading the numbers.'); return poll(); }
   if (btn.dataset.retry) { await api(`/api/tasks/${btn.dataset.retry}/retry`); return poll(); }
+  if ('redoVideo' in btn.dataset) { await api(`/api/briefs/${state.brief.id}/video`); toast('Jonas is making a new cut of the video.'); return poll(); }
   const card = btn.closest('.card'); if (!card) return;
   const id = card.dataset.id;
   if (btn.dataset.act === 'veto') { vetoOpen.add(id); renderInbox(state, true); $(`.card[data-id="${id}"] [data-note]`)?.focus(); return; }

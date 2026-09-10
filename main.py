@@ -64,6 +64,8 @@ def campaign_page(brief_id: str, request: Request):
                      order="round ASC, published_at ASC")
     videos = db.query("videos", "brief_id = ?", [brief_id], order="created_at DESC", limit=1)
     video = videos[0] if videos else None
+    if video and video.get("status") == "ready" and not (video.get("path") and Path(video["path"]).exists()):
+        video = {**video, "status": "html_only"}  # recorded file gone: play the live animation instead
     comments = db.query("comments", "brief_id = ? AND reply IS NOT NULL", [brief_id], order="created_at DESC", limit=6)
     post_titles = {p["id"]: p["headline"] for p in posts}
     for c in comments:
@@ -164,6 +166,10 @@ def state():
         t["mode"] = (t.get("input") or {}).get("mode")
         t.pop("input", None)
     videos = db.query("videos", "brief_id = ?", [brief_id], order="created_at DESC", limit=1) if brief_id else []
+    if videos and videos[0].get("status") == "ready" and not (videos[0].get("path") and Path(videos[0]["path"]).exists()):
+        videos[0]["status"] = "html_only"
+    if videos:
+        videos[0]["has_footage"] = any(sc.get("clip") or sc.get("photo") for sc in (videos[0].get("spec") or {}).get("scenes", []))
     comments = db.query("comments", "brief_id = ?", [brief_id], order="created_at DESC", limit=40) if brief_id else []
     titles = {x["id"]: x["headline"] for x in content}
     for cm in comments:
@@ -264,6 +270,22 @@ def chat(c: ChatIn):
 @app.get("/api/chat")
 def chat_history(limit: int = 40):
     return {"chat": list(reversed(db.query("chat", order="created_at DESC", limit=limit)))}
+
+
+@app.post("/api/briefs/{brief_id}/video")
+def redo_video(brief_id: str):
+    """Ask Jonas for a fresh storyboard (with real footage); the runtime renders and records it."""
+    brief = db.get("briefs", brief_id)
+    if not brief:
+        raise HTTPException(404, "no such brief")
+    if not db.query("content", "brief_id = ? AND status = 'published'", [brief_id]):
+        raise HTTPException(409, "nothing published yet")
+    if db.query("tasks", "brief_id = ? AND agent_key = 'motion' AND status IN ('ready','running')", [brief_id]):
+        raise HTTPException(409, "Jonas is already on it")
+    db.insert("tasks", {"brief_id": brief_id, "agent_key": "motion", "title": "Redo the campaign video",
+                        "input": {"redo": True}, "depends_on": [], "status": "ready", "round": runtime._current_round(brief_id)})
+    runtime.post_message(brief_id, "board", "motion", "status", "Jonas, the board wants a new cut of the campaign video.")
+    return {"ok": True}
 
 
 @app.post("/api/company/pause")

@@ -86,8 +86,8 @@
   .panel > .body { flex:1; overflow:auto; padding:12px 14px; min-height:0; }
   .center { display:grid; grid-template-rows:auto 1fr auto; gap:14px; min-height:0; }
   .center .panel.flow > .body { overflow:visible; padding:6px 10px 0; }
-  .right { display:grid; grid-template-rows:1fr auto; gap:14px; min-height:0; }
-  .right .panel:last-child:not([hidden]) { max-height:42%; }
+  .right { display:grid; grid-template-rows:minmax(0,1fr); gap:14px; min-height:0; }
+  .right.has-community { grid-template-rows:minmax(0,1.3fr) minmax(0,1fr); }
   .cm { padding:8px 4px; border-bottom:1px dotted var(--line); font-size:12.5px; }
   .cm .a { display:flex; gap:8px; align-items:center; font-size:11.5px; color:var(--ink-3); margin-bottom:2px; }
   .cm .a b { color:var(--ink-2); }
@@ -172,6 +172,10 @@
   .card .actions .acc { flex:1; }
   .card .actions input { flex:1 1 100%; }
   .card.deciding { opacity:.4; pointer-events:none; }
+  .card .tgt { display:flex; gap:6px; flex:1 1 100%; }
+  .card .tgt .chip { cursor:pointer; }
+  .card .tgt .chip.sel { color:var(--alert); border-color:rgba(255,92,108,.5); background:var(--alert-dim); }
+  .card .tgt .chip.auto { outline:1px dashed rgba(255,255,255,.25); outline-offset:2px; }
 
   /* ---------- bottom ---------- */
   .campaign { display:grid; grid-template-columns:minmax(280px,1fr) 2.2fr; gap:14px; height:300px; }
@@ -184,6 +188,9 @@
   .task .st.failed { background:var(--alert); color:#fff; border-color:var(--alert); }
   .task .st.waiting_human { color:var(--warn); border-color:rgba(255,201,77,.5); }
   .task button { padding:1px 8px; font-size:11px; border-radius:6px; }
+  .chans { display:flex; gap:6px; margin:6px 0 2px; }
+  .chan-tag { font-family:var(--mono); font-size:10.5px; padding:1px 8px; border-radius:6px; border:1px solid var(--line-2); color:var(--ink-2); }
+  .chan-tag.off { text-decoration:line-through; color:var(--alert); border-color:rgba(255,92,108,.4); }
   .brief-card { border:1px solid var(--line-2); border-radius:12px; padding:10px 12px; margin:10px 0; background:rgba(0,0,0,.25); font-size:12.5px; }
   .brief-card .t { font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); margin-bottom:4px; }
   .brief-card .hl { font-weight:700; font-size:14px; margin-bottom:6px; }
@@ -291,6 +298,7 @@
             <a id="campaign-link" href="#" target="_blank" hidden>campaign page ↗</a>
           </div>
 
+          <div id="channels" class="chans" hidden></div>
           <div id="report"></div>
           <div id="adplan"></div>
           <div id="pipeline"></div>
@@ -471,7 +479,7 @@ function renderBus(s) {
 /* ---------- inbox ---------- */
 function renderInbox(s, force) {
   const items = s.pending_approvals;
-  const key = items.map(c => c.id + (c.has_asset ? '+' : '-')).join(',') + '|' + [...vetoOpen].join(',') + '|' + !!s.brief;
+  const key = items.map(c => c.id + (c.has_asset ? '+' : '-') + (c.asset_id || '') + (c.redesigns || 0)).join(',') + '|' + [...vetoOpen].join(',') + '|' + !!s.brief;
   if (!force && key === inboxKey) return;
   inboxKey = key;
   const cnt = $('#inbox-count'); cnt.hidden = !items.length; cnt.textContent = `${items.length} to decide`;
@@ -485,12 +493,15 @@ function renderInbox(s, force) {
         <div class="b">${esc(c.body)}</div>
         <div class="why">${esc(c.cta)} · ${esc(c.rationale)}</div>
         <div class="flags">${(c.risk_flags || []).map(f => `<span class="chip alert">⚠ ${esc(f)}</span>`).join('') || '<span class="chip acc">clean</span>'}
-          <span class="chip ${c.compliance_verdict === 'revised' ? 'warn' : 'info'}">${c.compliance_verdict === 'revised' ? 'rewritten for Sofia' : 'Sofia: cleared'}</span></div>
+          <span class="chip ${c.compliance_verdict === 'revised' ? 'warn' : 'info'}">${c.compliance_verdict === 'revised' ? 'rewritten for Sofia' : 'Sofia: cleared'}</span>
+          ${c.redesigns ? `<span class="chip warn">redesigned ×${c.redesigns}</span>` : ''}</div>
       </div>
       <div class="actions">
         <button class="acc" data-act="approved">Approve</button>
         <button class="danger" data-act="veto">Veto</button>
-        ${vetoOpen.has(c.id) ? `<input placeholder="note for Lena, e.g. too salesy" data-note><button class="danger" data-act="vetoed" style="flex:1 1 100%">Send veto</button>` : ''}
+        ${vetoOpen.has(c.id) ? `<input placeholder="note for Lena / Kofi, e.g. too salesy, headline overflows" data-note>
+          <div class="tgt" data-tgt><span class="chip sel" data-t="copywriter">Copy</span><span class="chip" data-t="designer">Design</span><span class="chip" data-t="both">Both</span></div>
+          <button class="danger" data-act="vetoed" style="flex:1 1 100%">Send veto</button>` : ''}
       </div>
     </div>`).join('');
 }
@@ -499,6 +510,8 @@ function renderInbox(s, force) {
 function renderPipeline(s) {
   const b = s.brief;
   $('#campaign-title').textContent = b ? `${b.product_name} · ${b.campaign_name || 'planning…'}` : 'Campaign';
+  const chanEl = $('#channels');
+  if (b) { const act = b.active_channels || b.channels || []; chanEl.innerHTML = (b.channels || []).map(c => `<span class="chan-tag${act.includes(c) ? '' : ' off'}" title="${act.includes(c) ? 'active' : 'dropped by Mei'}">${esc(c)}</span>`).join(''); chanEl.hidden = false; } else chanEl.hidden = true;
   const bs = $('#brief-status'); bs.hidden = !b; if (b) { bs.textContent = b.status.replace('_',' '); bs.className = 'chip ' + (b.status === 'live' ? 'acc' : b.status === 'iterating' ? 'info' : ''); }
   const link = $('#campaign-link'); if (b) { link.href = `/campaign/${b.id}`; link.hidden = false; } else link.hidden = true;
   const published = s.content.some(c => c.status === 'published');
@@ -544,7 +557,7 @@ function renderContent(s) {
   grid.innerHTML = vid + s.content.map(c => `
     <div class="post ${c.status}">
       <div class="poster">${c.has_asset ? `<img src="/api/content/${c.id}/asset.svg" alt="">` : '<div class="noimg">poster pending</div>'}
-        <div class="ov"><span class="chip">${esc(c.channel)}</span>${c.round > 1 ? '<span class="chip info">revised</span>' : ''}${c.status === 'published' ? '<span class="chip acc">live</span>' : c.status === 'vetoed' ? '<span class="chip alert">vetoed</span>' : c.status === 'blocked' ? '<span class="chip alert">blocked</span>' : ''}</div></div>
+        <div class="ov"><span class="chip">${esc(c.channel)}</span>${c.round > 1 ? '<span class="chip info">revised</span>' : ''}${c.status === 'published' ? '<span class="chip acc">live</span>' : c.status === 'vetoed' ? '<span class="chip alert">vetoed</span>' : c.status === 'blocked' ? '<span class="chip alert">blocked</span>' : c.status === 'redesign' ? '<span class="chip warn">redesign</span>' : ''}</div></div>
       <div class="in"><div class="h">${esc(c.headline)}</div>
         ${c.metrics ? `<div class="m"><span><b>${c.metrics.impressions.toLocaleString()}</b> imp</span><span><b>${c.metrics.ctr}%</b> ctr</span><span><b>${c.metrics.signups}</b> signups</span></div>` : ''}</div>
     </div>`).join('');
@@ -555,6 +568,7 @@ function renderCommunity(s) {
   const panel = $('#community-panel');
   const items = s.comments || [];
   panel.hidden = !items.length;
+  document.querySelector('.right').classList.toggle('has-community', !!items.length);
   if (!items.length) return;
   const key = items.map(c => c.id + (c.reply ? 'r' : '')).join(',');
   if (key === commKey) return;
@@ -595,12 +609,26 @@ document.addEventListener('click', async (e) => {
   if (btn.dataset.act === 'veto') { vetoOpen.add(id); renderInbox(state, true); $(`.card[data-id="${id}"] [data-note]`)?.focus(); return; }
   if (btn.dataset.act === 'approved' || btn.dataset.act === 'vetoed') {
     const note = card.querySelector('[data-note]')?.value || '';
+    const target = card.querySelector('[data-tgt] .sel')?.dataset.t || null;
     vetoOpen.delete(id); card.classList.add('deciding');
-    await api(`/api/approvals/${id}`, {decision: btn.dataset.act, note});
+    const r = await api(`/api/approvals/${id}`, {decision: btn.dataset.act, note, target});
+    if (r.status === 'redesign') toast('Sent back to Kofi for a new poster.');
     return poll();
   }
 });
 $('#pace').addEventListener('change', async (e) => { await api('/api/company/pace', {seconds: Number(e.target.value)}); toast(`Pace set to ${e.target.options[e.target.selectedIndex].text}.`); });
+const DESIGN_WORDS = ['align','overflow','cut off','clip','colour','color','font','poster','layout','glyph','palette','image','contrast','unreadable','visual','picture'];
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-tgt] .chip'); if (!chip) return;
+  for (const c of chip.parentElement.children) c.classList.remove('sel', 'auto');
+  chip.classList.add('sel');
+});
+document.addEventListener('input', (e) => {
+  if (!e.target.matches('[data-note]')) return;
+  const tgt = e.target.closest('.card').querySelector('[data-tgt]'); if (!tgt || tgt.dataset.manual) return;
+  const v = e.target.value.toLowerCase(); const want = DESIGN_WORDS.some(w => v.includes(w)) ? 'designer' : 'copywriter';
+  for (const c of tgt.children) { c.classList.toggle('sel', c.dataset.t === want); c.classList.toggle('auto', c.dataset.t === want); }
+});
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && e.target.matches('[data-note]')) e.target.closest('.card').querySelector('[data-act="vetoed"]').click();
 });

@@ -184,7 +184,7 @@ class BriefIn(BaseModel):
 
 
 def create_brief(b: BriefIn) -> str:
-    bid = db.insert("briefs", {**b.model_dump(), "status": "new", "day": 0})
+    bid = db.insert("briefs", {**b.model_dump(), "status": "new", "day": 0, "active_channels": list(b.channels)})
     db.insert("tasks", {"brief_id": bid, "agent_key": "ceo", "title": f"Plan the campaign for {b.product_name}",
                         "input": {}, "depends_on": [], "status": "ready", "round": 1})
     runtime.post_message(bid, "board", "ceo", "handoff",
@@ -207,6 +207,7 @@ def post_demo_brief(which: int = 1):
 class Decision(BaseModel):
     decision: str = Field(..., pattern="^(approved|vetoed)$")
     note: str = ""
+    target: str | None = Field(None, pattern="^(copywriter|designer|both)$")
 
 
 @app.post("/api/approvals/{content_id}")
@@ -216,16 +217,7 @@ def decide(content_id: str, d: Decision):
         raise HTTPException(404, "no such content")
     if c["status"] != "pending_approval":
         raise HTTPException(409, f"content is {c['status']}")
-    db.update("content", content_id, {"status": d.decision})
-    for a in db.query("approvals", "content_id = ?", [content_id]):
-        db.update("approvals", a["id"], {"decision": d.decision, "decided_by": "board", "note": d.note})
-    verb = "approved" if d.decision == "approved" else "vetoed"
-    body = f"Board {verb} the {c['channel']} post \"{c['headline']}\"."
-    if d.note:
-        body += f" Note: {d.note}"
-    runtime.post_message(c["brief_id"], "board", "copywriter" if verb == "vetoed" else "publisher",
-                         "status" if verb == "approved" else "alert", body)
-    return {"ok": True, "status": d.decision}
+    return {"ok": True, **runtime.board_decide(c, d.decision, d.note, d.target)}
 
 
 @app.post("/api/briefs/{brief_id}/simulate_day")
@@ -239,8 +231,10 @@ def simulate_day(brief_id: str):
     if db.query("tasks", "brief_id = ? AND agent_key = 'analyst' AND status IN ('ready','running')", [brief_id]):
         raise HTTPException(409, "analyst is already working on the last day")
     day = (brief.get("day") or 0) + 1
+    if tools.env_flag("MOCK_LLM") and day > tools.MOCK_MAX_ROUNDS:
+        raise HTTPException(409, f"mock mode supports {tools.MOCK_MAX_ROUNDS} simulated days; set MOCK_LLM=0 for more")
     plans = db.query("ad_plans", "brief_id = ?", [brief_id], order="created_at DESC", limit=1)
-    rows = tools.simulate_metrics(brief_id, day, published)
+    rows = tools.simulate_metrics(brief, day, published)
     tools.apply_paid_media(rows, published, plans[0]["allocation"] if plans else None, f"{brief_id}:{day}")
     for row in rows:
         db.insert("metrics", row)

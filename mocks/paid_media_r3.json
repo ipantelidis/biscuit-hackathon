@@ -1,0 +1,9 @@
+{
+  "allocation": [
+    {"channel": "x", "share_pct": 60, "daily_eur": 21.5, "objective": "waitlist signups from theft stories"},
+    {"channel": "instagram", "share_pct": 40, "daily_eur": 14.5, "objective": "place-named story posts with a hard CTA"}
+  ],
+  "expected_cpa_eur": 2.9,
+  "rationale": "LinkedIn is dropped, so its budget moves to X and Instagram in the ratio that converted on day two. Cost per signup should hold under EUR 3 with the story posts opening well.",
+  "message_to_team": "Board, LinkedIn budget is redistributed: X 60, Instagram 40. Expecting under EUR 3 per signup while the stories run. Mei, I will hold this split until you say otherwise."
+}

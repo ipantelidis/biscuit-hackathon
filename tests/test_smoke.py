@@ -1,35 +1,6 @@
-"""Whole company in mock mode: brief -> round 1 live -> simulate day -> round 2 live."""
-import os
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
-
-os.environ.update({
-    "MOCK_LLM": "1", "MOCK_SEARCH": "1", "MOCK_LLM_DELAY": "0", "MOTION_RENDER": "0",
-    "ORCHESTRATOR_AUTOSTART": "0", "BUDGET_EUR": "5.0", "PACE_SECONDS": "0",
-    "GHOST_DB_PATH": str(ROOT / "tests" / "_smoke.db"),
-})
-
-import pytest  # noqa: E402
-from fastapi.testclient import TestClient  # noqa: E402
-
-import db  # noqa: E402
-import runtime  # noqa: E402
-
-
-@pytest.fixture()
-def client():
-    for suffix in ("", "-wal", "-shm"):
-        p = Path(os.environ["GHOST_DB_PATH"] + suffix)
-        if p.exists():
-            p.unlink()
-    db.close()
-    import main
-    with TestClient(main.app) as c:
-        yield c
-    db.close()
+"""Whole company in mock mode: brief -> round 1 live -> three simulated days -> rounds 2 and 3."""
+import db  # noqa: F401
+import runtime
 
 
 def statuses(tasks):
@@ -112,6 +83,39 @@ def test_full_loop(client):
     assert s["ad_plan"]["round"] == 2
     assert len([c for c in s["content"] if c["status"] == "published"]) == 4
     assert "revised after day 1" in client.get(f"/campaign/{bid}").text
+    assert not [t for t in s["tasks"] if t["status"] == "failed"]
+
+    # day 2: Mei drops LinkedIn, asks Nora to re-research, and wants theft stories (round 3)
+    client.post(f"/api/briefs/{bid}/simulate_day")
+    runtime.tick()
+    s = client.get("/api/state").json()
+    st = statuses(s["tasks"])
+    assert s["brief"]["active_channels"] == ["instagram", "x"]
+    assert st[("researcher", 3, None)] == "done"
+    assert st[("strategist", 3, None)] == st[("copywriter", 3, None)] == "done"
+    for p in s["pending_approvals"]:
+        client.post(f"/api/approvals/{p['id']}", json={"decision": "approved"})
+    runtime.tick()
+    s = client.get("/api/state").json()
+    st = statuses(s["tasks"])
+    assert st[("publisher", 3, None)] == "done"
+    published = [c for c in s["content"] if c["status"] == "published"]
+    assert len(published) == 6 and len({c["headline"] for c in published}) == 6
+    assert all(c["channel"] != "linkedin" for c in published if c["round"] == 3)
+    for t in db.query("tasks", "brief_id = ? AND agent_key = 'strategist' AND round >= 2 AND json_extract(input,'$.mode') IS NULL", [bid]):
+        assert t["output"]["changes_from_previous_round"]
+    for t in db.query("tasks", "brief_id = ? AND agent_key = 'analyst'", [bid]):
+        assert t["output"]["winner_id"] and t["output"]["loser_id"]
+
+    # day 3: hold, then the mock ceiling
+    client.post(f"/api/briefs/{bid}/simulate_day")
+    runtime.tick()
+    s = client.get("/api/state").json()
+    st = statuses(s["tasks"])
+    assert ("copywriter", 4, None) not in st and s["brief"]["status"] == "live"
+    assert any("Mei: hold" in m["body"] for m in s["messages"])
+    r = client.post(f"/api/briefs/{bid}/simulate_day")
+    assert r.status_code == 409 and "mock mode supports" in r.text
     assert not [t for t in s["tasks"] if t["status"] == "failed"]
 
 

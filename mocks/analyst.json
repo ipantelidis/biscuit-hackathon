@@ -1,27 +1,36 @@
 {
-  "report": "Day 1 is in. The X post with a number in the headline pulled the highest click-through of the campaign, about 2.5 times the LinkedIn post. The Instagram story post landed in the middle: solid likes, fewer clicks. LinkedIn got impressions but almost no engagement; the commuter audience read it and moved on. Recommendation: make numbers the default hook, lead with X, and cut LinkedIn to once a week until it earns its place.",
+  "report": "Day 1 is in. The post with a number in the headline pulled the highest click-through per day; the LinkedIn story post got impressions but almost no engagement; the Instagram story landed in the middle with likes but few clicks. Recommendation: make numbers the default hook, lead with X, and cut LinkedIn to once a week until it earns its place.",
   "winner_content_id": "C1",
   "loser_content_id": "C3",
   "findings": [
-    "C1 hit the top CTR of the day because the headline opens with a concrete number",
-    "C3 had the most impressions but the lowest CTR; a story format without a hook does not travel on LinkedIn",
-    "Likes on C2 were strong but clicks lagged, so the CTA in bio is losing people"
+    "The numbered headline wins on ctr_per_day because the figure is the hook",
+    "The LinkedIn story had the most impressions but the lowest ctr_per_day; a story without a hook does not travel there",
+    "Likes on the Instagram story were strong but clicks lagged, so the CTA in bio is losing people"
   ],
   "recommendations": [
     {
       "action": "Put a number in every headline and make X the lead channel",
-      "why": "The numbered X headline was the clear winner on CTR",
-      "target_agent": "strategist"
+      "why": "The numbered X headline was the clear winner on ctr_per_day",
+      "target_agent": "strategist",
+      "directive": "new_posts",
+      "channel": null,
+      "num_posts": 2
     },
     {
       "action": "Rewrite the next posts to open with a figure, keep the story format for Instagram only",
       "why": "Numbers drove clicks; stories drove likes but not clicks",
-      "target_agent": "copywriter"
+      "target_agent": "copywriter",
+      "directive": "new_posts",
+      "channel": null,
+      "num_posts": 2
     },
     {
       "action": "Move ad budget from LinkedIn to X",
       "why": "LinkedIn had the highest cost per signup, X the lowest",
-      "target_agent": "paid_media"
+      "target_agent": "paid_media",
+      "directive": "new_posts",
+      "channel": null,
+      "num_posts": null
     }
   ],
   "message_to_team": "Bram, day-1 report is on the bus: the numbered X headline won on CTR, LinkedIn story post lost. Revise the plan: numbers first, X leads, LinkedIn to weekly. Lena gets the details from you."

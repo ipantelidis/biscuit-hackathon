@@ -1,0 +1,16 @@
+{
+  "positioning": "Nachtfiets is the end of buying bike lights: EUR 9 a month and you never ride dark again, even after a theft.",
+  "key_messages": ["Stolen? Replaced within 24 hours, free", "The theft is the story, not the light", "Never buy bike lights again"],
+  "channels": [
+    {"channel": "x", "role": "Lead channel: theft stories from real waitlisters", "cadence": "daily"},
+    {"channel": "instagram", "role": "Story posts with a place name and a hard CTA", "cadence": "3 posts per week"}
+  ],
+  "two_week_plan": [
+    {"week": 1, "focus": "Theft stories by location: Centraal, Zuidas, UvA, VU", "posts": 6},
+    {"week": 2, "focus": "Waitlist milestones as social proof", "posts": 5}
+  ],
+  "success_metric": "300 waitlist signups by day 14, tracked from campaign page clicks",
+  "changes_from_previous_round": "Mei found the number-led hooks saturating and LinkedIn bottom of the ranking two days running. LinkedIn is dropped, the hook family switches from numbers to first-person theft stories tied to Nora's parking hotspots, and Instagram posts must name a place.",
+  "question_for_colleague": null,
+  "message_to_team": "Lena, round three: no numbers in headlines this time. Two first-person theft stories, each naming a place from Nora's hotspot list. X leads, Instagram follows, LinkedIn is out."
+}

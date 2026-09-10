@@ -137,11 +137,26 @@ class Palette(BaseModel):
     accent: str = "#ff5a1f"
 
 
+def _clip_words(v: str, n: int) -> str:
+    words = str(v or "").split()
+    return " ".join(words[:n]) if len(words) > n else " ".join(words)
+
+
 class AssetSpec(BaseModel):
     model_config = ConfigDict(extra="ignore")
     content_index: int
     headline: str
     subline: str = ""
+
+    @field_validator("headline")
+    @classmethod
+    def _head(cls, v: str) -> str:
+        return _clip_words(v, 8)  # the renderer fits anything; the cap keeps posters poster-like
+
+    @field_validator("subline")
+    @classmethod
+    def _sub(cls, v: str) -> str:
+        return _clip_words(v, 14)
     palette: Palette = Field(default_factory=Palette)
     layout: Literal["stacked", "split", "badge"] = "stacked"
     glyph: str = "*"
@@ -227,6 +242,14 @@ class Recommendation(BaseModel):
     action: str
     why: str = ""
     target_agent: Literal["strategist", "copywriter", "paid_media"] = "strategist"
+    directive: Literal["new_posts", "drop_channel", "boost_channel", "re_research", "hold"] = "new_posts"
+    channel: Literal["instagram", "linkedin", "x"] | None = None
+    num_posts: int | None = None
+
+    @field_validator("num_posts")
+    @classmethod
+    def _cap(cls, v):
+        return None if v is None else max(1, min(4, int(v)))
 
 
 class AnalystOut(_Out):

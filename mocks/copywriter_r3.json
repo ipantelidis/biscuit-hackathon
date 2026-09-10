@@ -1,0 +1,8 @@
+{
+  "items": [
+    {"channel": "x", "headline": "Stolen at Centraal. Twice. Same week.", "body": "Real story from the waitlist: Jorn locked his bike at Centraal on Monday, lights gone. Bought new ones Tuesday. Gone by Thursday. Nachtfiets would have sent the second pair before he finished swearing. Waitlist is open.", "cta": "Join the waitlist", "hashtags": ["#Nachtfiets", "#Amsterdam", "#Centraal"], "rationale": "Implements Mei's recommendation to switch from number hooks to theft stories tied to a hotspot; no number in the headline.", "risk_flags": ["unverified claim: individual story from the waitlist"]},
+    {"channel": "instagram", "headline": "The bike racks at Science Park eat lights", "body": "Ask anyone who parks there.\nNachtfiets ships new lights within 24 hours, free.\nEUR 9 a month. Cancel whenever.\nWe know which racks to watch.", "cta": "Waitlist in bio", "hashtags": ["#Nachtfiets", "#SciencePark", "#UvA"], "rationale": "Implements Bram's instruction to name a place from Nora's hotspot research; story format kept for Instagram.", "risk_flags": []}
+  ],
+  "question_for_colleague": null,
+  "message_to_team": "Board, round three: two theft stories, Centraal and Science Park, no numbers in the headlines this time. The X post carries a waitlister's story I flagged as unverified. Kofi, two posters."
+}

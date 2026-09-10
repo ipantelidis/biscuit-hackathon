@@ -20,7 +20,7 @@ _lock = threading.RLock()
 _conn: sqlite3.Connection | None = None
 
 JSON_COLUMNS = {
-    "briefs": {"channels"},
+    "briefs": {"channels", "active_channels"},
     "tasks": {"input", "output", "depends_on"},
     "content": {"hashtags", "risk_flags"},
     "assets": {"spec"},
@@ -28,6 +28,7 @@ JSON_COLUMNS = {
     "videos": {"spec"},
     "ad_plans": {"allocation"},
     "reports": {"body"},
+    "metrics": {"factors"},
 }
 
 # columns added after the first release; applied to existing databases on connect
@@ -36,6 +37,9 @@ MIGRATIONS = [
     ("metrics", "paid_impressions", "INTEGER DEFAULT 0"), ("metrics", "ad_spend_eur", "REAL DEFAULT 0"),
     ("agents", "hired", "INTEGER DEFAULT 0"), ("agents", "color", "TEXT"),
     ("company", "pace_seconds", "REAL DEFAULT 6"),
+    ("content", "published_day", "INTEGER"), ("content", "redesigns", "INTEGER DEFAULT 0"),
+    ("metrics", "factors", "TEXT"), ("approvals", "target", "TEXT"), ("approvals", "round", "INTEGER"),
+    ("briefs", "active_channels", "TEXT"),
 ]
 
 SCHEMA = """
@@ -56,7 +60,7 @@ CREATE TABLE IF NOT EXISTS briefs (
   id TEXT PRIMARY KEY, product_name TEXT, one_liner TEXT, description TEXT,
   audience TEXT, goals TEXT, budget_eur REAL, tone TEXT, channels TEXT,
   status TEXT DEFAULT 'new', campaign_name TEXT, objective TEXT,
-  campaign_headline TEXT, campaign_intro TEXT, day INTEGER DEFAULT 0,
+  campaign_headline TEXT, campaign_intro TEXT, day INTEGER DEFAULT 0, active_channels TEXT,
   created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS tasks (
@@ -74,7 +78,7 @@ CREATE TABLE IF NOT EXISTS content (
   headline TEXT, body TEXT, cta TEXT, hashtags TEXT, rationale TEXT,
   risk_flags TEXT, status TEXT DEFAULT 'draft', asset_id TEXT,
   published_at TEXT, publish_slot TEXT, round INTEGER DEFAULT 1,
-  compliance_verdict TEXT, compliance_note TEXT,
+  compliance_verdict TEXT, compliance_note TEXT, published_day INTEGER, redesigns INTEGER DEFAULT 0,
   created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS assets (
@@ -85,7 +89,7 @@ CREATE TABLE IF NOT EXISTS metrics (
   id TEXT PRIMARY KEY, content_id TEXT, brief_id TEXT, day INTEGER,
   impressions INTEGER, clicks INTEGER, likes INTEGER, shares INTEGER,
   signups INTEGER, ctr REAL, paid_impressions INTEGER DEFAULT 0, ad_spend_eur REAL DEFAULT 0,
-  created_at TEXT, updated_at TEXT
+  factors TEXT, created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS videos (
   id TEXT PRIMARY KEY, brief_id TEXT, task_id TEXT, title TEXT, spec TEXT, caption TEXT,
@@ -107,7 +111,8 @@ CREATE TABLE IF NOT EXISTS reports (
 );
 CREATE TABLE IF NOT EXISTS approvals (
   id TEXT PRIMARY KEY, content_id TEXT, requested_by TEXT,
-  decision TEXT, decided_by TEXT, note TEXT, created_at TEXT, updated_at TEXT
+  decision TEXT, decided_by TEXT, note TEXT, target TEXT, round INTEGER,
+  created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS spend (
   id TEXT PRIMARY KEY, agent_key TEXT, task_id TEXT,

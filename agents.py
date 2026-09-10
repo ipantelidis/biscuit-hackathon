@@ -194,8 +194,14 @@ ANALYST_SCHEMA = _obj({
     "winner_content_id": _s("the content_id label of the best performer"),
     "loser_content_id": _s("the content_id label of the worst performer"),
     "findings": _arr(_s(), "3 strings, each tying a number to a reason"),
-    "recommendations": _arr(_obj({"action": _s(), "why": _s(),
-                                  "target_agent": _s(enum=["strategist", "copywriter", "paid_media"])})),
+    "recommendations": _arr(_obj({
+        "action": _s(), "why": _s(),
+        "target_agent": _s(enum=["strategist", "copywriter", "paid_media"]),
+        "directive": _s("what the runtime should do", enum=["new_posts", "drop_channel", "boost_channel", "re_research", "hold"]),
+        "channel": {"type": ["string", "null"], "enum": ["instagram", "linkedin", "x", None],
+                    "description": "required for drop_channel and boost_channel, else null"},
+        "num_posts": {"type": ["integer", "null"], "description": "for new_posts: 1-4, else null"},
+    })),
     "message_to_team": MSG,
 })
 
@@ -293,9 +299,10 @@ message_to_team, set sources to [] and confidence to "low". Never invent statist
 You are Bram, the Strategist. Turn the research into a plan: one-sentence positioning,
 three key messages, a role and cadence per channel from the brief, a two-week plan, and one
 success metric tied to the brief's goal.
-If this is a revision round you will receive an analyst report with recommendations. Then you
-must change something concrete and explain it in changes_from_previous_round (name the finding
-that drove it). In round 1 set changes_from_previous_round to an empty string.
+If this is a revision round you will receive the research, your previous strategy, a changelog of
+what you changed before, per-post performance and the analyst's report. Do not restate the previous
+strategy: change it and say why in changes_from_previous_round, naming the finding that drove it.
+Never repeat a change already in the changelog. In round 1 set changes_from_previous_round to "".
 You may ask one colleague one question via question_for_colleague when a fact would sharpen
 the plan (usually Nora); otherwise null.""",
         "output_schema": STRATEGIST_SCHEMA,
@@ -316,7 +323,9 @@ words to avoid), use them as seasoning inside that language, not as a reason to 
 and say so in a rationale.
 If you receive board veto notes, do not repeat the vetoed approach.
 In revision rounds you receive analyst recommendations: at least one post must implement one
-explicitly and its rationale must say which recommendation it implements.
+explicitly and its rationale must say which recommendation it implements. You also receive every
+post the company already ran, with its numbers: do not reuse a headline, an opening line or a hook
+family already in that list. Only write for the active channels you are given.
 You may ask one colleague one question via question_for_colleague; otherwise null.""",
         "output_schema": COPYWRITER_SCHEMA,
     },
@@ -405,7 +414,14 @@ current strategy. Write a <=120 word plain-language report for the board, name t
 loser by their content_id label, give three findings each tying a number to a reason, and 2-3
 recommendations with target_agent set to strategist (positioning, channel mix), copywriter
 (format, hook, wording) or paid_media (budget shifts). Be specific: "double down on the numbered
-headline format" beats "improve engagement".""",
+headline format" beats "improve engagement".
+Each recommendation carries one directive the runtime executes: new_posts (write N new posts,
+1-4), drop_channel (stop a channel that is not converting; set channel), boost_channel (one extra
+post on the channel that converts; set channel), re_research (Nora investigates a specific
+question; put it in why), hold (nothing worth changing yet; no new posts this round). At most one
+re_research per round. Use hold only when the numbers say wait. Judge posts on ctr_per_day, not on
+cumulative totals: older posts have had more days. The ranking you are given is the truth; your
+winner and loser must match it.""",
         "output_schema": ANALYST_SCHEMA,
     },
     "cfo": {

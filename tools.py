@@ -18,6 +18,7 @@ import httpx
 
 log = logging.getLogger("ghost.tools")
 MOCK_DIR = Path(__file__).parent / "mocks"
+MOCK_MAX_ROUNDS = 3   # rounds (and simulated days) mock mode supports before it says so
 
 
 def env_flag(name: str, default: str = "0") -> bool:
@@ -36,6 +37,9 @@ def _mock_llm(agent_key: str, variant: str | None) -> tuple[str, int, int]:
         time.sleep(delay)
     candidates = []
     if variant:
+        m = re.fullmatch(r"r(\d+)", variant)
+        if m and int(m.group(1)) >= MOCK_MAX_ROUNDS + 1 and not (MOCK_DIR / f"{agent_key}_{variant}.json").exists():
+            raise LLMError(f"mock mode supports {MOCK_MAX_ROUNDS} rounds; set MOCK_LLM=0 for more")
         candidates.append(MOCK_DIR / f"{agent_key}_{variant}.json")
         if variant in ("answer", "standup", "board_report", "revise"):  # mode: generic file beats the agent's own
             candidates.append(MOCK_DIR / f"{variant}.json")
@@ -175,6 +179,29 @@ def _wrap(text: str, max_chars: int, max_lines: int) -> list[str]:
     return lines
 
 
+CHAR_W = 0.58  # Helvetica bold average advance as a fraction of font size
+
+
+def _fit(text: str, col_width: int, max_lines: int, sizes: tuple[int, ...]) -> tuple[list[str], int]:
+    """Largest size in `sizes` whose wrapped lines all fit in col_width; falls back to the smallest."""
+    text = " ".join(str(text or "").split())
+    if not text:
+        return [], sizes[-1]
+    for size in sizes:
+        max_chars = max(4, int(col_width / (size * CHAR_W)))
+        lines = _wrap(text, max_chars, max_lines)
+        if len(lines) <= max_lines and all(len(ln) * size * CHAR_W <= col_width for ln in lines) \
+                and not any(ln.endswith("…") for ln in lines):
+            return lines, size
+    size = sizes[-1]
+    return _wrap(text, max(4, int(col_width / (size * CHAR_W))), max_lines), size
+
+
+def _block_top(bottom_baseline: int, n_lines: int, size: int) -> int:
+    """First baseline so that the last line sits on bottom_baseline (bottom-anchored blocks)."""
+    return bottom_baseline - (max(n_lines, 1) - 1) * int(size * 1.08)
+
+
 def _text_block(lines: list[str], x: int, y: int, size: int, fill: str, weight: str = "700",
                 anchor: str = "start") -> str:
     out = []
@@ -201,23 +228,29 @@ def render_poster_svg(spec: dict, product_name: str = "") -> str:
              f'role="img" aria-label="{html.escape(str(spec.get("alt_text") or headline))}">',
              f'<rect width="1080" height="1080" fill="{bg}"/>']
 
+    HEAD = (120, 104, 96, 84, 72, 64)
+    SUB = (42, 38, 34, 30)
     if layout == "stacked":
         parts.append(f'<rect x="80" y="80" width="120" height="14" fill="{ac}"/>')
         parts.append(f'<text x="920" y="230" font-size="180" text-anchor="end" font-family="{FONT}">{glyph}</text>')
-        parts.append(_text_block(_wrap(headline, 14, 3), 80, 520, 120, fg))
-        parts.append(_text_block(_wrap(subline, 34, 2), 80, 900, 42, fg, "400"))
+        hl, hs = _fit(headline, 920, 3, HEAD)
+        parts.append(_text_block(hl, 80, _block_top(780, len(hl), hs), hs, fg))
+        sl, ss = _fit(subline, 920, 2, SUB)
+        parts.append(_text_block(sl, 80, 900, ss, fg, "400"))
     elif layout == "split":
         parts.append(f'<rect x="540" y="0" width="540" height="1080" fill="{ac}"/>')
         parts.append(f'<text x="810" y="600" font-size="260" text-anchor="middle" font-family="{FONT}">{glyph}</text>')
-        parts.append(_text_block(_wrap(headline, 11, 4), 70, 380, 96, fg))
-        parts.append(_text_block(_wrap(subline, 24, 3), 70, 860, 38, fg, "400"))
+        hl, hs = _fit(headline, 470, 4, HEAD)
+        parts.append(_text_block(hl, 70, _block_top(700, len(hl), hs), hs, fg))
+        sl, ss = _fit(subline, 470, 3, SUB)
+        parts.append(_text_block(sl, 70, _block_top(930, len(sl), ss), ss, fg, "400"))
     else:  # badge
         parts.append(f'<circle cx="540" cy="400" r="280" fill="{ac}"/>')
         parts.append(f'<text x="540" y="470" font-size="210" text-anchor="middle" font-family="{FONT}">{glyph}</text>')
-        head_lines = _wrap(headline, 18, 2)
-        parts.append(_text_block(head_lines, 540, 790, 80, fg, "700", "middle"))
-        sub_y = 790 + (len(head_lines) - 1) * 86 + 58
-        parts.append(_text_block(_wrap(subline, 44, 2), 540, sub_y, 34, fg, "400", "middle"))
+        hl, hs = _fit(headline, 920, 2, (84, 72, 64, 56))
+        parts.append(_text_block(hl, 540, _block_top(870, len(hl), hs), hs, fg, "700", "middle"))
+        sl, ss = _fit(subline, 920, 2, (34, 30, 26))
+        parts.append(_text_block(sl, 540, 870 + 58, ss, fg, "400", "middle"))
 
     if product:
         parts.append(f'<text x="80" y="1020" font-family="{FONT}" font-size="28" font-weight="500" '
@@ -231,42 +264,77 @@ def render_poster_svg(spec: dict, product_name: str = "") -> str:
 # ------------------------------------------------------------------ metrics simulation
 
 BASE_IMPRESSIONS = {"x": 1200, "linkedin": 800, "instagram": 1500, "landing": 600}
+DECAY = {0: 1.3, 1: 1.0, 2: 0.7}          # days since publish -> attention multiplier; >=3 -> 0.45
 
 
-def simulate_metrics(brief_id: str, day: int, published: list[dict]) -> list[dict]:
+def _hook_family(headline: str) -> str | None:
+    if re.search(r"\d", headline or ""):
+        return "number"
+    if (headline or "").strip().endswith("?"):
+        return "question"
+    return None
+
+
+def metric_factors(c: dict, day: int, brief: dict, earlier: list[dict], live: list[dict]) -> dict:
+    """Explainable multipliers for one published post on one day (deterministic, no randomness)."""
+    h = (c.get("headline") or "").strip()
+    age = max(0, day - int(c.get("published_day") or 0))
+    f = {"decay": DECAY.get(age, 0.45), "hook": 1.0, "channel_fit": 1.0, "fatigue": 1.0,
+         "saturation": 1.0, "risk": 1.0, "age_days": age}
+    if re.search(r"\d", h):
+        f["hook"] *= 1.25
+    if len(h) <= 30:
+        f["hook"] *= 1.15
+    if h.endswith("?"):
+        f["hook"] *= 1.1
+    if len(h) > 60:
+        f["hook"] *= 0.7
+    channels = list(brief.get("channels") or [])
+    if len(channels) > 1:
+        if c.get("channel") == channels[0]:
+            f["channel_fit"] = 1.15
+        elif c.get("channel") == channels[-1]:
+            f["channel_fit"] = 0.9
+    first3 = " ".join(h.lower().split()[:3])
+    if first3 and any(" ".join((e.get("headline") or "").lower().split()[:3]) == first3 for e in earlier):
+        f["fatigue"] = 0.5
+    fam = _hook_family(h)
+    if fam and sum(1 for x in live if _hook_family(x.get("headline") or "") == fam) >= 2:
+        f["saturation"] = 0.75
+    if c.get("risk_flags"):
+        f["risk"] = 0.9
+    return f
+
+
+def simulate_metrics(brief: dict, day: int, published: list[dict]) -> list[dict]:
     """One day of metrics for each published content item.
 
-    Deterministic seed = brief_id + day. A clear winner (shortest headline or one containing
-    a number) gets x1.8 engagement; a clear loser (longest headline) gets x0.4.
+    Deterministic seed = brief id + day. Multipliers come from metric_factors: launch bump then
+    decay, hook quality, channel fit, fatigue (repeated opening), saturation (same hook family),
+    and risk flags (people bounce on unverified claims). Every row carries its factors.
     """
     if not published:
         return []
+    brief_id = brief["id"]
     seed = int(hashlib.sha256(f"{brief_id}:{day}".encode()).hexdigest(), 16) % (2**32)
     rng = random.Random(seed)
-
-    def score(c):
-        h = c.get("headline") or ""
-        return (0 if re.search(r"\d", h) else 1, len(h))
-
-    ordered = sorted(published, key=score)
-    winner = ordered[0]["id"]
-    loser = ordered[-1]["id"] if len(ordered) > 1 and ordered[-1]["id"] != winner else None
-
+    ordered = sorted(published, key=lambda c: (c.get("published_at") or "", c.get("created_at") or ""))
     rows = []
-    for c in published:
+    for i, c in enumerate(ordered):
+        f = metric_factors(c, day, brief, ordered[:i], ordered)
         base = BASE_IMPRESSIONS.get(c.get("channel"), 1000)
-        impressions = int(base * rng.uniform(0.75, 1.25))
-        ctr = rng.uniform(0.01, 0.04)
-        like_rate = rng.uniform(0.02, 0.06)
-        mult = 1.8 if c["id"] == winner else 0.4 if c["id"] == loser else 1.0
-        clicks = int(impressions * ctr * mult)
-        likes = int(impressions * like_rate * mult)
+        impressions = int(base * rng.uniform(0.85, 1.15) * f["decay"] * f["channel_fit"])
+        ctr = rng.uniform(0.012, 0.03) * f["hook"] * f["fatigue"] * f["saturation"]
+        like_rate = rng.uniform(0.02, 0.05) * f["hook"] * f["fatigue"]
+        clicks = int(impressions * ctr)
+        likes = int(impressions * like_rate)
         shares = int(likes * rng.uniform(0.05, 0.2))
-        signups = int(clicks * rng.uniform(0.08, 0.2))
+        signups = int(clicks * rng.uniform(0.1, 0.22) * f["risk"])
         rows.append({"content_id": c["id"], "brief_id": brief_id, "day": day,
                      "impressions": impressions, "clicks": clicks, "likes": likes,
                      "shares": shares, "signups": signups,
-                     "ctr": round(clicks / impressions, 4) if impressions else 0.0})
+                     "ctr": round(clicks / impressions, 4) if impressions else 0.0,
+                     "factors": f})
     return rows
 
 

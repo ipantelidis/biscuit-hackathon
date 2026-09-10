@@ -100,6 +100,44 @@ def _latest_output(brief_id: str, agent_key: str) -> dict | None:
     return rows[0]["output"] if rows else None
 
 
+DESIGN_WORDS = ("align", "overflow", "cut off", "clip", "colour", "color", "font", "poster", "layout", "glyph",
+                "palette", "image", "contrast", "unreadable", "visual", "picture")
+
+
+def classify_note(note: str) -> str:
+    n = (note or "").lower()
+    return "designer" if any(w in n for w in DESIGN_WORDS) else "copywriter"
+
+
+def post_performance(brief_id: str) -> list[dict]:
+    """Every content row with its live days, daily rows and ctr_per_day (mean of daily CTRs)."""
+    out = []
+    for c in db.query("content", "brief_id = ?", [brief_id], order="round ASC, created_at ASC"):
+        ms = db.query("metrics", "content_id = ?", [c["id"]], order="day ASC")
+        per_day = [{"day": m["day"], "impressions": m["impressions"], "clicks": m["clicks"], "signups": m["signups"],
+                    "ctr": m["ctr"]} for m in ms]
+        ctr_per_day = round(sum(m["ctr"] for m in ms) / len(ms), 4) if ms else None
+        out.append({"id": c["id"], "round": c["round"], "channel": c["channel"], "headline": c["headline"],
+                    "body": (c["body"] or "")[:200], "rationale": c["rationale"], "status": c["status"],
+                    "risk_flags": c["risk_flags"], "days_live": len(ms), "per_day": per_day,
+                    "ctr_per_day": ctr_per_day, "signups": sum(m["signups"] for m in ms),
+                    "ad_spend_eur": round(sum(m["ad_spend_eur"] or 0 for m in ms), 2)})
+    return out
+
+
+def published_ranking(brief_id: str) -> list[dict]:
+    """Published posts labelled C1.. in publish order, plus the ranking by ctr_per_day."""
+    pub = [p for p in post_performance(brief_id) if p["status"] == "published"]
+    pub.sort(key=lambda p: (db.get("content", p["id"]).get("published_at") or "", p["round"]))
+    for i, p in enumerate(pub):
+        p["label"] = f"C{i + 1}"
+    return pub
+
+
+def active_channels(brief: dict) -> list[str]:
+    return list(brief.get("active_channels") or brief.get("channels") or ["instagram", "linkedin", "x"])
+
+
 def _metrics_rows(brief_id: str) -> list[dict]:
     rows = []
     for i, c in enumerate(db.query("content", "brief_id = ? AND status = 'published'", [brief_id])):
@@ -117,8 +155,12 @@ def _metrics_rows(brief_id: str) -> list[dict]:
 def ctx_researcher(task: dict, brief: dict) -> str:
     product = brief["product_name"]
     category = (brief.get("one_liner") or "")[:80]
-    queries = [f"{category} competitors", f"{product} target audience {brief.get('audience', '')[:60]}",
-               f"{category} market Netherlands"]
+    focus = task["input"].get("focus")
+    if focus:
+        queries = [f"{focus}", f"{product} {focus}", f"{focus} {brief.get('audience', '')[:40]}"]
+    else:
+        queries = [f"{category} competitors", f"{product} target audience {brief.get('audience', '')[:60]}",
+                   f"{category} market Netherlands"]
     results, seen = [], set()
     for q in queries:
         for r in tools.web_search(q, k=3):
@@ -140,24 +182,58 @@ def ctx_copywriter(task: dict, brief: dict) -> str:
             if c:
                 items.append({**_content_view(c, i), "compliance_note": c.get("compliance_note")})
         parts.append("## Posts to rewrite (same order, one item each)\n" + _j(items))
-    vetoes = db.query("approvals", "decision = 'vetoed' AND note IS NOT NULL AND note != ''")
-    notes = []
-    for a in vetoes:
-        c = db.get("content", a["content_id"])
-        if c and c["brief_id"] == brief["id"]:
-            notes.append({"channel": c["channel"], "headline": c["headline"], "board_note": a["note"]})
+    notes = veto_notes(brief["id"], ("copywriter", "both"), since_round=task["round"] - 1)
     if notes:
         parts.append("## Board veto notes on earlier posts (do not repeat these approaches)\n" + _j(notes))
     specialists = db.query("tasks", "brief_id = ? AND status = 'done' AND json_extract(input,'$.specialist') = 1",
                            [brief["id"]])
     for sp in specialists:
         parts.append(f"## Notes from {agent_name(sp['agent_key'])} (hired specialist)\n" + _j(sp["output"]))
+    chans = active_channels(brief)
+    parts.append("## Active channels (write only for these)\n" + _j(chans)
+                 + (f"\nDropped by the analyst: {_j(sorted(set(brief.get('channels') or []) - set(chans)))}"
+                    if set(brief.get("channels") or []) - set(chans) else ""))
+    if task["input"].get("channel_focus"):
+        parts.append(f"Channel focus this round: {task['input']['channel_focus']} (it converts best; give it one extra post).")
     if task["round"] > 1:
-        prev = db.query("content", "brief_id = ? AND round < ?", [brief["id"], task["round"]])
-        if prev:
-            parts.append("## Posts already published in earlier rounds (write different ones)\n"
-                         + _j([{"round": c["round"], "channel": c["channel"], "headline": c["headline"],
-                                "status": c["status"]} for c in prev]))
+        prev = [p for p in post_performance(brief["id"]) if p["round"] < task["round"]]
+        full = [p for p in prev if p["round"] >= task["round"] - 3]
+        older = [p for p in prev if p["round"] < task["round"] - 3]
+        if full:
+            parts.append("## Every post the company already ran, with numbers. Do not reuse a headline, "
+                         "an opening line or a hook family from this list.\n"
+                         + _j([{k: p[k] for k in ("round", "channel", "headline", "body", "rationale", "status",
+                                                  "days_live", "ctr_per_day", "signups")} for p in full]))
+        if older:
+            parts.append("## Older posts (headlines only; do not reuse)\n"
+                         + _j([{"round": p["round"], "channel": p["channel"], "headline": p["headline"]} for p in older]))
+    return "\n\n".join(parts)
+
+
+def veto_notes(brief_id: str, targets: tuple[str, ...], since_round: int) -> list[dict]:
+    out = []
+    for a in db.query("approvals", "decision = 'vetoed' AND note IS NOT NULL AND note != ''", order="created_at ASC"):
+        c = db.get("content", a["content_id"])
+        if not c or c["brief_id"] != brief_id:
+            continue
+        if (a.get("target") or "copywriter") not in targets or int(a.get("round") or c["round"]) < since_round:
+            continue
+        out.append({"round": c["round"], "channel": c["channel"], "headline": c["headline"], "board_note": a["note"]})
+    return out
+
+
+def ctx_strategist(task: dict, brief: dict) -> str:
+    if not task["input"].get("revision"):
+        return ""
+    parts = []
+    log_rows = [{"round": t["round"], "changes_from_previous_round": (t["output"] or {}).get("changes_from_previous_round")}
+                for t in db.query("tasks", "brief_id = ? AND agent_key = 'strategist' AND status = 'done' "
+                                  "AND json_extract(input,'$.mode') IS NULL", [brief["id"]], order="round ASC")]
+    parts.append("## Strategy changelog (do not repeat these changes)\n" + _j(log_rows))
+    perf = [{k: p[k] for k in ("round", "channel", "headline", "status", "days_live", "ctr_per_day", "signups")}
+            for p in post_performance(brief["id"])]
+    parts.append("## Content performance so far\n" + _j(perf))
+    parts.append("## Active channels\n" + _j(active_channels(brief)))
     return "\n\n".join(parts)
 
 
@@ -175,8 +251,21 @@ def ctx_designer(task: dict, brief: dict) -> str:
     for i, cid in enumerate(task["input"].get("content_ids", [])):
         c = db.get("content", cid)
         if c:
-            items.append(_content_view(c, i))
-    return f"## Content items to design (use content_index)\n{_j(items)}\n\nBrief tone: {brief.get('tone')}"
+            item = _content_view(c, i)
+            if c.get("asset_id"):
+                prev = db.get("assets", c["asset_id"])
+                if prev:
+                    item["previous_poster_spec"] = prev["spec"]
+            items.append(item)
+    parts = [f"## Content items to design (use content_index)\n{_j(items)}\n\nBrief tone: {brief.get('tone')}"]
+    if task["input"].get("redesign"):
+        parts.append("## Redesign\nThe board vetoed the previous poster. Board note: "
+                     f"{task['input'].get('note')}\nMake a clearly different poster that fixes the note; "
+                     "change layout or palette, not just words.")
+    notes = veto_notes(brief["id"], ("designer", "both"), since_round=task["round"] - 1)
+    if notes:
+        parts.append("## Board notes on earlier posters (fix these)\n" + _j(notes))
+    return "\n\n".join(parts)
 
 
 def ctx_publisher(task: dict, brief: dict) -> str:
@@ -218,7 +307,19 @@ def ctx_community(task: dict, brief: dict) -> str:
 
 
 def ctx_analyst(task: dict, brief: dict) -> str:
-    parts = [f"## Metrics through day {brief.get('day')} per published post\n{_j(_metrics_rows(brief['id']))}"]
+    ranked = published_ranking(brief["id"])
+    rows = []
+    for p in ranked:
+        rows.append({"content_id": p["label"], "round": p["round"], "channel": p["channel"], "headline": p["headline"],
+                     "body": p["body"], "days_live": p["days_live"], "ctr_per_day": p["ctr_per_day"],
+                     "signups": p["signups"], "ad_spend_eur": p["ad_spend_eur"],
+                     "cost_per_signup_eur": round(p["ad_spend_eur"] / p["signups"], 2) if p["signups"] and p["ad_spend_eur"] else None,
+                     "per_day": p["per_day"]})
+    ranking = sorted(ranked, key=lambda p: -(p["ctr_per_day"] or 0))
+    parts = [f"## Metrics through day {brief.get('day')} per published post\n{_j(rows)}",
+             "## Ranking by ctr_per_day (highest first; your winner and loser must match this)\n"
+             + _j([{"content_id": p["label"], "ctr_per_day": p["ctr_per_day"], "days_live": p["days_live"]} for p in ranking]),
+             "## Active channels\n" + _j(active_channels(brief))]
     plan = db.query("ad_plans", "brief_id = ?", [brief["id"]], order="created_at DESC", limit=1)
     if plan:
         parts.append("## Ad plan in effect\n" + _j(plan[0]["allocation"]))
@@ -289,7 +390,7 @@ def ctx_mode(task: dict, brief: dict) -> str:
     return ""
 
 
-CONTEXT_BUILDERS = {"researcher": ctx_researcher, "copywriter": ctx_copywriter, "compliance": ctx_compliance,
+CONTEXT_BUILDERS = {"researcher": ctx_researcher, "strategist": ctx_strategist, "copywriter": ctx_copywriter, "compliance": ctx_compliance,
                     "designer": ctx_designer, "publisher": ctx_publisher, "motion": ctx_motion,
                     "paid_media": ctx_paid_media, "community": ctx_community, "analyst": ctx_analyst,
                     "cfo": ctx_cfo}
@@ -459,13 +560,22 @@ def hook_copywriter(task: dict, out: dict, brief: dict) -> None:
             db.insert("approvals", {"content_id": cid, "requested_by": "copywriter"})
         return
     content_ids = []
-    for item in out["items"]:
+    chans = active_channels(brief)
+    dropped = [it for it in out["items"] if it["channel"] not in chans]
+    if dropped:
+        post_message(brief["id"], "copywriter", "board", "alert",
+                     f"Discarded {len(dropped)} post(s) on dropped channel(s) "
+                     f"{', '.join(sorted({d['channel'] for d in dropped}))}: {dropped[0]['headline']}", task["id"])
+    for item in [it for it in out["items"] if it["channel"] in chans]:
         cid = db.insert("content", {"brief_id": brief["id"], "task_id": task["id"], "channel": item["channel"],
                                     "headline": item["headline"], "body": item["body"], "cta": item["cta"],
                                     "hashtags": item["hashtags"], "rationale": item["rationale"],
                                     "risk_flags": item["risk_flags"], "status": "in_review",
                                     "round": task["round"]})
         content_ids.append(cid)
+    if not content_ids:
+        post_message(brief["id"], "copywriter", "board", "alert", "No posts survived the channel filter this round.", task["id"])
+        return
     comp_id = db.insert("tasks", {"brief_id": brief["id"], "agent_key": "compliance",
                                   "title": f"Review {len(content_ids)} posts before the board (round {task['round']})",
                                   "input": {"content_ids": content_ids}, "depends_on": [task["id"]],
@@ -514,17 +624,27 @@ def hook_compliance(task: dict, out: dict, brief: dict) -> None:
 def hook_designer(task: dict, out: dict, brief: dict) -> None:
     content_ids = task["input"].get("content_ids", [])
     specs = {a["content_index"]: a for a in out["assets"]}
+    redesign = bool(task["input"].get("redesign"))
     for i, cid in enumerate(content_ids):
         c = db.get("content", cid)
         if not c or c["status"] == "blocked":
             continue
+        if redesign and not specs.get(i):
+            specs[i] = {"content_index": i, "headline": c["headline"], "subline": c["cta"], "palette": {},
+                        "layout": ("split", "badge", "stacked")[(c.get("redesigns") or 0) % 3], "glyph": "✦",
+                        "alt_text": c["headline"]}
         spec = specs.get(i) or {"content_index": i, "headline": c["headline"], "subline": c["cta"],
                                 "palette": {}, "layout": ("stacked", "split", "badge")[i % 3], "glyph": "✦",
                                 "alt_text": c["headline"]}
         svg = tools.render_poster_svg(spec, brief["product_name"])
         aid = db.insert("assets", {"content_id": cid, "kind": "svg_poster", "spec": spec, "svg": svg,
                                    "alt_text": spec.get("alt_text") or c["headline"]})
-        db.update("content", cid, {"asset_id": aid})
+        if redesign:
+            db.update("content", cid, {"asset_id": aid, "status": "pending_approval",
+                                       "redesigns": (c.get("redesigns") or 0) + 1})
+            db.insert("approvals", {"content_id": cid, "requested_by": "designer", "round": c["round"]})
+        else:
+            db.update("content", cid, {"asset_id": aid})
 
 
 def hook_publisher(task: dict, out: dict, brief: dict) -> None:
@@ -532,6 +652,7 @@ def hook_publisher(task: dict, out: dict, brief: dict) -> None:
     slots = {s["content_index"]: s["publish_slot"] for s in out.get("schedule", [])}
     for i, c in enumerate(approved):
         db.update("content", c["id"], {"status": "published", "published_at": db.now(),
+                                       "published_day": int(brief.get("day") or 0),
                                        "publish_slot": slots.get(i) or f"Day {i + 1} 09:00"})
     db.update("briefs", brief["id"], {"status": "live", "campaign_headline": out["campaign_headline"],
                                       "campaign_intro": out["campaign_intro"]})
@@ -607,31 +728,111 @@ def hook_community(task: dict, out: dict, brief: dict) -> None:
 
 
 def hook_analyst(task: dict, out: dict, brief: dict) -> None:
-    pub = db.query("content", "brief_id = ? AND status = 'published'", [brief["id"]])
-    labels = {f"C{i + 1}": c for i, c in enumerate(pub)}
-    winner = labels.get(out.get("winner_content_id"))
-    loser = labels.get(out.get("loser_content_id"))
-    post_message(brief["id"], "analyst", "board", "report", out["report"], task["id"])
+    ranked = published_ranking(brief["id"])
+    by_label = {p["label"]: p for p in ranked}
+    by_ctr = sorted(ranked, key=lambda p: -(p["ctr_per_day"] or 0))
+    report = out["report"]
+    winner = by_label.get(out.get("winner_content_id"))
+    loser = by_label.get(out.get("loser_content_id"))
+    if by_ctr:
+        top, bottom = by_ctr[0], by_ctr[-1]
+        if (winner and winner["id"] != top["id"]) or (loser and len(by_ctr) > 1 and loser["id"] != bottom["id"]) \
+                or not winner or (not loser and len(by_ctr) > 1):
+            winner, loser = top, (bottom if len(by_ctr) > 1 else None)
+            report = report.rstrip() + f" (winner {top['label']}, loser {bottom['label'] if len(by_ctr) > 1 else '-'} "\
+                                       "by ctr_per_day; corrected by the runtime)"
+            out["winner_content_id"], out["loser_content_id"] = top["label"], (bottom["label"] if len(by_ctr) > 1 else "")
+    out["report"] = report
+    post_message(brief["id"], "analyst", "board", "report", report, task["id"])
+
+    # ---- directives change the plan, not just a text field
+    recs = out.get("recommendations") or []
+    num_posts, channel_focus, focus, hold = 2, None, None, False
+    chans = active_channels(brief)
+    seen_research = False
+    for r in recs:
+        d = r.get("directive") or "new_posts"
+        if d == "drop_channel" and r.get("channel") in chans and len(chans) > 1:
+            chans = [c for c in chans if c != r["channel"]]
+            post_message(brief["id"], "analyst", "board", "alert",
+                         f"Mei dropped {r['channel']}: {r.get('why') or r.get('action')}", task["id"])
+        elif d == "boost_channel" and r.get("channel"):
+            channel_focus = r["channel"]
+            num_posts += 1
+        elif d == "re_research" and not seen_research:
+            seen_research = True
+            focus = r.get("why") or r.get("action")
+        elif d == "hold":
+            hold = True
+        elif d == "new_posts" and r.get("num_posts"):
+            num_posts = int(r["num_posts"])
+    if channel_focus and channel_focus not in chans:
+        channel_focus = None
+    num_posts = max(1, min(4, num_posts))
+    db.update("briefs", brief["id"], {"active_channels": chans})
+
     next_round = _current_round(brief["id"]) + 1
-    analysis = {"report": out["report"], "findings": out["findings"], "recommendations": out["recommendations"],
-                "winner": _content_view(winner) if winner else None,
-                "loser": _content_view(loser) if loser else None, "day": brief.get("day")}
+    analysis = {"report": report, "findings": out["findings"], "recommendations": recs,
+                "winner": {k: winner[k] for k in ("channel", "headline", "ctr_per_day", "signups")} if winner else None,
+                "loser": {k: loser[k] for k in ("channel", "headline", "ctr_per_day", "signups")} if loser else None,
+                "day": brief.get("day")}
+    db.update("tasks", task["id"], {"output": {**out, "winner_id": winner["id"] if winner else None,
+                                               "loser_id": loser["id"] if loser else None}})
+    if hold:
+        post_message(brief["id"], "analyst", "board", "status",
+                     "Mei: hold. " + next((r.get("why") or r.get("action")) for r in recs if r.get("directive") == "hold"),
+                     task["id"])
+        return
+
+    deps = []
+    if focus:
+        r_id = db.insert("tasks", {"brief_id": brief["id"], "agent_key": "researcher",
+                                   "title": f"Re-research: {focus[:70]}", "input": {"focus": focus},
+                                   "depends_on": [], "status": "ready", "round": next_round})
+        deps.append(r_id)
+    for key in ("researcher", "strategist"):
+        last = db.query("tasks", "brief_id = ? AND agent_key = ? AND status = 'done' AND json_extract(input,'$.mode') IS NULL",
+                        [brief["id"], key], order="created_at DESC", limit=1)
+        if last:
+            deps.append(last[0]["id"])
     s_id = db.insert("tasks", {"brief_id": brief["id"], "agent_key": "strategist",
                                "title": f"Revise the strategy after day {brief.get('day')} results",
-                               "input": {"revision": True, "analysis": analysis}, "depends_on": [],
-                               "status": "ready", "round": next_round})
+                               "input": {"revision": True, "analysis": analysis}, "depends_on": deps,
+                               "status": "blocked", "round": next_round})
+    c_input = {"num_posts": num_posts,
+               "recommendations": [r for r in recs if r.get("target_agent") == "copywriter"] or recs}
+    if channel_focus:
+        c_input["channel_focus"] = channel_focus
     c_id = db.insert("tasks", {"brief_id": brief["id"], "agent_key": "copywriter",
                                "title": f"Write round {next_round} posts on the analyst's recommendations",
-                               "input": {"num_posts": 2, "recommendations":
-                                         [r for r in out["recommendations"] if r["target_agent"] == "copywriter"]
-                                         or out["recommendations"]},
-                               "depends_on": [s_id], "status": "blocked", "round": next_round})
+                               "input": c_input, "depends_on": [s_id], "status": "blocked", "round": next_round})
     db.insert("tasks", {"brief_id": brief["id"], "agent_key": "publisher",
                         "title": f"Ship round {next_round}", "input": {}, "depends_on": [c_id],
                         "status": "blocked", "round": next_round})
     db.update("briefs", brief["id"], {"status": "iterating"})
-    db.update("tasks", task["id"], {"output": {**out, "winner_id": winner["id"] if winner else None,
-                                               "loser_id": loser["id"] if loser else None}})
+
+
+def board_decide(content: dict, decision: str, note: str, target: str | None) -> dict:
+    """Approve or veto one post. Vetoes are routed to Lena, Kofi or both; a design-only veto
+    triggers a redesign instead of killing the post."""
+    target = target or (classify_note(note) if note else "copywriter")
+    redesign = decision == "vetoed" and target == "designer" and bool(content.get("asset_id"))
+    db.update("content", content["id"], {"status": "redesign" if redesign else decision})
+    for a in db.query("approvals", "content_id = ? AND decision IS NULL", [content["id"]]):
+        db.update("approvals", a["id"], {"decision": decision, "decided_by": "board", "note": note,
+                                         "target": target if decision == "vetoed" else None, "round": content["round"]})
+    verb = "approved" if decision == "approved" else "vetoed"
+    body = f"Board {verb} the {content['channel']} post \"{content['headline']}\"."
+    if note:
+        body += f" Note: {note}"
+    to = "publisher" if verb == "approved" else {"designer": "designer", "both": "all"}.get(target, "copywriter")
+    post_message(content["brief_id"], "board", to, "status" if verb == "approved" else "alert", body)
+    if redesign:
+        db.insert("tasks", {"brief_id": content["brief_id"], "agent_key": "designer",
+                            "title": f"Redesign the poster for \"{content['headline'][:40]}\"",
+                            "input": {"content_ids": [content["id"]], "redesign": True, "note": note},
+                            "depends_on": [], "status": "ready", "round": content["round"]})
+    return {"status": "redesign" if redesign else decision, "target": target}
 
 
 def hook_cfo(task: dict, out: dict, brief: dict) -> None:

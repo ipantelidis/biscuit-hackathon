@@ -1,14 +1,74 @@
 {
   "replies": [
-    {"comment_id": "K1", "reply": "Same here, honestly. That is exactly why we built this. Waitlist link is in the bio."},
-    {"comment_id": "K2", "reply": "Amsterdam only for the launch, yes. Other cities once we have stopped being surprised by how many lights get stolen here."},
-    {"comment_id": "K3", "reply": "Fair question. A set of decent lights is EUR 20-40 and lasts until someone takes it. We replace as often as needed, so it pays off after the first theft."},
-    {"comment_id": "K4", "reply": "Within 24 hours on working days, from a courier in the city. We will publish the numbers once we are live so you can hold us to it."},
-    {"comment_id": "K5", "reply": "Thank you! Tell the whole house, the waitlist is open."},
-    {"comment_id": "K6", "reply": "No catch: EUR 9 a month, cancel anytime, keep the lights you have. We make money if you stay because it just works."}
+    {
+      "comment_id": "K1",
+      "reply": "Same here, honestly. That is exactly why we built this. Waitlist link is in the bio."
+    },
+    {
+      "comment_id": "K2",
+      "reply": "Amsterdam only for the launch, yes. Other cities once we have stopped being surprised by how many lights get stolen here."
+    },
+    {
+      "comment_id": "K3",
+      "reply": "Fair question. A set of decent lights is EUR 20-40 and lasts until someone takes it. We replace as often as needed, so it pays off after the first theft."
+    },
+    {
+      "comment_id": "K4",
+      "reply": "Within 24 hours on working days, from a courier in the city. We will publish the numbers once we are live so you can hold us to it."
+    },
+    {
+      "comment_id": "K5",
+      "reply": "Thank you! Tell the whole house, the waitlist is open."
+    },
+    {
+      "comment_id": "K6",
+      "reply": "No catch: EUR 9 a month, cancel anytime, keep the lights you have. We make money if you stay because it just works."
+    },
+    {
+      "comment_id": "K7",
+      "reply": "Good question. Amsterdam first; other cities follow once the couriers are set up."
+    },
+    {
+      "comment_id": "K8",
+      "reply": "Yes, the clips fit standard handlebars and seat posts, bakfiets included."
+    },
+    {
+      "comment_id": "K9",
+      "reply": "Cancel anytime; the lights you have stay yours."
+    },
+    {
+      "comment_id": "K10",
+      "reply": "Kids' bikes are on the list. Sign up and tell us the size."
+    },
+    {
+      "comment_id": "K11",
+      "reply": "October, with the first batch going to the waitlist in order."
+    },
+    {
+      "comment_id": "K12",
+      "reply": "No catch: EUR 9 a month and we replace what gets stolen. That is the whole product."
+    },
+    {
+      "comment_id": "K13",
+      "reply": "Ha, we hear this a lot. Three sets last exactly until the third theft."
+    },
+    {
+      "comment_id": "K14",
+      "reply": "It is a subscription because the theft is recurring, not the light."
+    }
   ],
-  "sentiment": {"positive": 3, "neutral": 2, "negative": 1},
-  "themes": ["price vs buying lights", "Amsterdam-only launch", "how fast is replacement really"],
-  "escalations": ["Several people ask how the 24h replacement works in practice; we should show the courier flow in a post."],
+  "sentiment": {
+    "positive": 3,
+    "neutral": 2,
+    "negative": 1
+  },
+  "themes": [
+    "price vs buying lights",
+    "Amsterdam-only launch",
+    "how fast is replacement really"
+  ],
+  "escalations": [
+    "Several people ask how the 24h replacement works in practice; we should show the courier flow in a post."
+  ],
   "message_to_team": "Mei, day-1 mood is mostly positive. Recurring questions: is EUR 9 worth it versus buying lights, and how fast replacement really is. One post explaining the courier flow would answer both. Board, no fires."
 }

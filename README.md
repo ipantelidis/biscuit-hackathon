@@ -82,6 +82,26 @@ Tests (whole company, round 1 and round 2, in mock mode):
 Internal life: agents can ask each other questions on the bus (answered by a real call), every simulated
 day opens with a standup, and vetoed posts feed back into the next round's brief.
 
+## How the loop learns
+
+- **Round memory.** The revision strategist depends on the latest research and its own previous plan, and
+  gets a changelog of every change it made before. The copywriter sees every post the company ran, with
+  body, rationale, days live, click-through per day and signups (last three rounds in full, older ones as
+  headlines), and may not reuse a headline, opening line or hook family.
+- **Analyst directives.** Each of Mei's recommendations carries a directive the runtime executes:
+  `new_posts` (N posts), `drop_channel` (struck through on the dashboard; posts on it are discarded),
+  `boost_channel` (one extra post there), `re_research` (Nora investigates a focus; the strategist waits for
+  her), `hold` (no new posts this round). The runtime ranks posts by click-through per day and corrects
+  Mei's winner and loser if her narrative contradicts the numbers.
+- **Simulator with memory.** Attention decays after launch, hooks with a number, a short headline or a
+  question earn more, a repeated opening line halves engagement, three posts of the same hook family
+  saturate, and risk-flagged posts convert worse. Every metrics row stores its factors.
+- **Veto routing.** A veto note goes to Lena, Kofi or both (chips on the veto form; the default is guessed
+  from the note). A design-only veto sends the post back to Kofi for a new poster instead of killing it.
+  Notes expire after one round for copy and two for design.
+- **Posters that fit.** Headlines and sublines are shrunk to fit their column; nothing overflows.
+- **Mock mode** supports three simulated days and says so on the fourth.
+
 ## Demo script (5 minutes)
 
 1. **0:00** Dashboard empty. "There are 42 people in this room. Our company has zero employees. These eight are the whole staff."

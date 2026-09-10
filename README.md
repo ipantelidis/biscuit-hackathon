@@ -55,12 +55,24 @@ Tests (whole company, round 1 and round 2, in mock mode):
 | `POST /api/briefs/{id}/simulate_day` | one day of metrics, then the Analyst runs and round N+1 starts |
 | `POST /api/company/pause` / `resume` | kill switch |
 | `POST /api/company/pace` | `{"seconds": 6}` minimum seconds per agent task, for demo pacing |
+| `POST /api/chat` | `{"message": "..."}` talk to Iris; she may start a brief, run a day, pause, resume, or brief a colleague |
 | `GET /motion/{brief_id}` | the campaign video as a looping HTML animation |
 | `GET /api/videos/{id}.webm` | the recorded video file |
 | `POST /api/tasks/{id}/retry` | reset a failed task |
 | `POST /api/reset` | wipe the campaign, keep agents and budget |
 | `GET /campaign/{brief_id}` | public campaign page |
 | `GET /api/content/{id}/asset.svg` | a poster |
+
+## Talking to Iris
+
+The board's only ways into the company are the chat with Iris (top right) and the Approve / Veto
+buttons. Iris answers from the live state and can act: describe a product and she starts the company
+on it (filling gaps in the brief and saying which); ask how it is going; say "run a day" to simulate a
+day; "pause" / "resume"; or "tell Lena to be less salesy" and she passes it on the team channel into
+Lena's next task. Actions show as chips under her reply. In mock mode Iris is rule-based; in real
+mode she is the CEO agent with a persona prompt and the company state. Endpoints: `POST /api/chat`
+`{"message": "..."}`, `GET /api/chat`. Her portrait (`static/iris.jpg`) is an AI-generated face, not a
+real person; `static/iris.svg` is the fallback.
 
 ## The company
 
@@ -106,7 +118,7 @@ day opens with a standup, and vetoed posts feed back into the next round's brief
 ## Demo script (5 minutes)
 
 1. **0:00** Dashboard empty. "There are 42 people in this room. Our company has zero employees. These eight are the whole staff."
-2. **0:30** Click **Start the company** (or **Your own brief** and type one). Iris lights up, hires Femke the localiser, tasks appear, Nora researches. Read one bus message aloud. Bram asks Nora a question; she answers.
+2. **0:30** Tell Iris about the product in the chat (or click **Start the company**). Iris lights up, hires Femke the localiser, tasks appear, Nora researches. Read one bus message aloud. Bram asks Nora a question; she answers.
 3. **1:30** Sofia reviews the posts and sends one back; Lena rewrites it. Posts arrive in the Board inbox with posters. "This is the only moment a human is needed." Approve two, veto one with a note ("too salesy").
 4. **2:15** Tariq publishes. Jonas storyboards the video, Jules sets the ad plan, Iris files the board report. Open the campaign page: the video plays at the top. Show the footer.
 5. **2:45** Click **Simulate day**. Iris runs the standup, comments arrive and Pim answers them, Mei's report lands, Bram revises, Lena writes new posts citing the report, Jules moves the ad money; approve; the page shows "revised after day 1". "Nobody asked them to."

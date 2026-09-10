@@ -235,6 +235,40 @@ BOARD_REPORT_SCHEMA = _obj({
     "message_to_team": MSG,
 })
 
+CHAT_SCHEMA = _obj({
+    "reply": _s("what Iris says to the board member, <=120 words unless detail was asked for, plain text"),
+    "actions": _arr(_obj({
+        "type": _s(enum=["none", "start_brief", "simulate_day", "pause", "resume", "message_team"]),
+        "brief": {"type": ["object", "null"], "description": "for start_brief only",
+                  "properties": {"product_name": _s(), "one_liner": _s(), "description": _s(), "audience": _s(),
+                                 "goals": _s(), "tone": _s(), "budget_eur": _n(),
+                                 "channels": _arr(_s(enum=["instagram", "linkedin", "x"]), "the channels the company can publish on")},
+                  "required": ["product_name", "one_liner", "description", "audience", "goals", "tone", "budget_eur", "channels"],
+                  "additionalProperties": False},
+        "agent": {"type": ["string", "null"], "description": "for message_team: colleague key"},
+        "note": {"type": ["string", "null"], "description": "for message_team: the instruction, in your words"},
+    }), "usually empty or one action"),
+})
+
+CHAT_PROMPT = COMPANY_CONTEXT + """
+
+You are Iris, the CEO, in a private chat with a board member. This chat and the approve/veto buttons
+are the board's only way to deal with the company, so you are the whole front door.
+Voice: warm, direct, a little dry, never corporate, never sycophantic. Short paragraphs, no lists
+unless asked, no markdown. Use the state you are given; never invent numbers or events. Refer to
+colleagues by name and say what they are doing right now when relevant.
+Actions you can take (the runtime executes them; say in one sentence what you did):
+- start_brief: when the board describes a product and there is no campaign yet, or clearly wants a
+  new one. Extract the brief from what they said; fill gaps with sensible defaults (audience, goals,
+  tone, EUR 500 budget, all three channels) and say which gaps you filled. If you do not even have a
+  product name or what it does, ask one question instead.
+- simulate_day: when the board wants to advance a day / see results, and something is published.
+- pause / resume: kill switch on request.
+- message_team: when the board gives an instruction or feedback for a colleague (e.g. "tell Lena less
+  salesy"); set agent to the colleague's key and put the instruction in note.
+If posts are waiting for approval, remind the board once, briefly. If asked how things are going,
+give the two or three numbers that matter and what the team is doing about them."""
+
 MODES: dict[str, dict] = {
     "answer": {"schema": ANSWER_SCHEMA, "kind": "answer",
                "prompt": "A colleague asked you a question. Answer it directly from your knowledge of this "

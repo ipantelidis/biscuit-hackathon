@@ -29,6 +29,7 @@ JSON_COLUMNS = {
     "ad_plans": {"allocation"},
     "reports": {"body"},
     "metrics": {"factors"},
+    "chat": {"actions"},
 }
 
 # columns added after the first release; applied to existing databases on connect
@@ -104,6 +105,10 @@ CREATE TABLE IF NOT EXISTS comments (
 CREATE TABLE IF NOT EXISTS ad_plans (
   id TEXT PRIMARY KEY, brief_id TEXT, task_id TEXT, round INTEGER, allocation TEXT,
   expected_cpa_eur REAL, rationale TEXT, created_at TEXT, updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS chat (
+  id TEXT PRIMARY KEY, brief_id TEXT, role TEXT, body TEXT, actions TEXT,
+  created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS reports (
   id TEXT PRIMARY KEY, brief_id TEXT, task_id TEXT, round INTEGER, day INTEGER,
@@ -282,7 +287,7 @@ def reset_all() -> None:
     """Wipe campaign data; keep agents and company defaults."""
     with tx() as conn:
         for t in ("briefs", "tasks", "messages", "content", "assets", "metrics", "approvals", "spend",
-                  "videos", "comments", "ad_plans", "reports"):
+                  "videos", "comments", "ad_plans", "reports", "chat"):
             conn.execute(f"DELETE FROM {t}")
         conn.execute("DELETE FROM agents WHERE hired = 1")
         conn.execute("UPDATE agents SET status='idle', current_task_id=NULL, tokens_in=0, tokens_out=0, cost_eur=0, updated_at=?", [now()])

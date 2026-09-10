@@ -86,8 +86,36 @@
   .panel > .body { flex:1; overflow:auto; padding:12px 14px; min-height:0; }
   .center { display:grid; grid-template-rows:auto 1fr auto; gap:14px; min-height:0; }
   .center .panel.flow > .body { overflow:visible; padding:6px 10px 0; }
-  .right { display:grid; grid-template-rows:minmax(0,1fr); gap:14px; min-height:0; }
-  .right.has-community { grid-template-rows:minmax(0,1.3fr) minmax(0,1fr); }
+  .right { display:grid; grid-template-rows:minmax(0,1.15fr) minmax(0,1fr); gap:14px; min-height:0; }
+  .tabs { display:flex; gap:4px; }
+  .tab { background:transparent; border:0; padding:2px 8px; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3); font-weight:600; border-radius:8px; }
+  .tab:hover { background:var(--panel-2); color:var(--ink-2); transform:none; }
+  .tab.sel { color:var(--ink); background:var(--panel-2); }
+  .tab #mood { font-family:var(--mono); letter-spacing:0; text-transform:none; font-weight:400; color:var(--ink-3); margin-left:4px; }
+  /* chat with Iris */
+  .chat-head { gap:12px; }
+  .iris { width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid var(--acc); box-shadow:0 0 18px var(--acc-glow); background:#222; }
+  .chat-head .who { font-weight:700; font-size:14px; }
+  .pres { font-size:11px; color:var(--acc); display:flex; align-items:center; gap:6px; }
+  .pres i { width:7px; height:7px; border-radius:50%; background:var(--acc); box-shadow:0 0 8px var(--acc); animation:blink 1.6s infinite; }
+  .pres.busy { color:var(--warn); } .pres.busy i { background:var(--warn); box-shadow:0 0 8px var(--warn); }
+  .pres.off { color:var(--alert); } .pres.off i { background:var(--alert); box-shadow:none; animation:none; }
+  .chat .body { display:flex; flex-direction:column; gap:10px; padding:14px; }
+  .bub { max-width:88%; padding:10px 13px; border-radius:16px; line-height:1.45; font-size:13.5px; white-space:pre-wrap; animation:in .3s ease-out both; }
+  .bub.board { align-self:flex-end; background:var(--acc); color:#0b1200; border-bottom-right-radius:4px; }
+  .bub.ceo { align-self:flex-start; background:var(--panel-2); border:1px solid var(--line); border-bottom-left-radius:4px; }
+  .bub .acts { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .bub time { display:block; font-family:var(--mono); font-size:10px; color:var(--ink-3); margin-top:5px; }
+  .bub.board time { color:rgba(0,0,0,.5); }
+  .typing { align-self:flex-start; display:flex; gap:4px; padding:12px 14px; background:var(--panel-2); border:1px solid var(--line); border-radius:16px; border-bottom-left-radius:4px; }
+  .typing i { width:6px; height:6px; border-radius:50%; background:var(--ink-2); animation:tp 1.2s infinite; }
+  .typing i:nth-child(2) { animation-delay:.2s; } .typing i:nth-child(3) { animation-delay:.4s; }
+  @keyframes tp { 0%,60%,100% { opacity:.25; transform:translateY(0); } 30% { opacity:1; transform:translateY(-3px); } }
+  .chat-in { display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--line); }
+  .chat-in input { flex:1; }
+  .sugg { display:flex; flex-wrap:wrap; gap:6px; margin-top:4px; }
+  .sugg button { font-size:12px; padding:5px 10px; border-radius:999px; font-weight:500; }
+  .chat-intro { color:var(--ink-2); font-size:13px; }
   .cm { padding:8px 4px; border-bottom:1px dotted var(--line); font-size:12.5px; }
   .cm .a { display:flex; gap:8px; align-items:center; font-size:11.5px; color:var(--ink-3); margin-bottom:2px; }
   .cm .a b { color:var(--ink-2); }
@@ -283,8 +311,9 @@
       <div class="body"><svg id="flow" viewBox="0 0 1000 185" preserveAspectRatio="xMidYMid meet"></svg></div>
     </div>
     <div class="panel">
-      <div class="head"><h2>Team channel</h2><span class="dim mono" id="bus-count"></span></div>
+      <div class="head"><div class="tabs"><button class="tab sel" data-tab="bus">Team channel</button><button class="tab" data-tab="community" id="community-tab" hidden>Community <span id="mood"></span></button></div><span class="dim mono" id="bus-count"></span></div>
       <div class="body" id="bus"></div>
+      <div class="body" id="community" hidden></div>
     </div>
     <div class="campaign">
       <div class="panel">
@@ -312,13 +341,21 @@
   </div>
 
   <div class="right">
+    <div class="panel chat">
+      <div class="head chat-head">
+        <img src="/static/iris.jpg" alt="Iris" class="iris" onerror="this.src='/static/iris.svg'">
+        <div><div class="who">Iris <span class="dim">· CEO</span></div><div class="pres" id="iris-presence"><i></i>online</div></div>
+        <span class="spacer"></span><span class="chip" title="This chat and the inbox are the board's only way into the company">your line to the company</span>
+      </div>
+      <div class="body" id="chat"></div>
+      <form class="chat-in" id="chat-form">
+        <input id="chat-msg" placeholder="Tell Iris about your product, ask how it is going, or give an instruction…" autocomplete="off" maxlength="2000">
+        <button type="submit" class="acc" id="chat-send">Send</button>
+      </form>
+    </div>
     <div class="panel">
       <div class="head"><h2>Board inbox</h2><span class="chip warn" id="inbox-count" hidden></span></div>
       <div class="body" id="inbox"></div>
-    </div>
-    <div class="panel" id="community-panel" hidden>
-      <div class="head"><h2>Community</h2><span class="dim mono" id="mood"></span></div>
-      <div class="body" id="community"></div>
     </div>
   </div>
 </section>
@@ -393,7 +430,7 @@ function renderHeader(s) {
 }
 
 /* ---------- staff ---------- */
-let orgKey = '';
+let orgKey = null;
 function renderOrg(s) {
   for (const a of s.agents) if (a.hired) HIRED[a.key] = {name: a.display_name.split(' (')[0], color: a.color || '#ffd166'};
   const key = s.agents.map(a => a.key + a.status + a.tokens_in + a.tokens_out + (a.current_task_id || '')).join(',') + s.company.paused;
@@ -418,7 +455,7 @@ const NODES = {ceo:[50,55], researcher:[170,55], strategist:[290,55], copywriter
 const EDGES = [['ceo','researcher'],['researcher','strategist'],['strategist','copywriter'],['copywriter','compliance'],['compliance','designer'],['designer','publisher'],
                ['publisher','motion'],['publisher','paid_media'],['paid_media','cfo'],
                ['publisher','community','loop'],['community','analyst'],['analyst','strategist','loop']];
-let flowKey = '';
+let flowKey = null;
 function renderFlow(s) {
   const key = s.tasks.map(t => t.id + t.status).join(',');
   if (key === flowKey) return;
@@ -534,7 +571,7 @@ function renderPipeline(s) {
       ${t.status === 'failed' ? `<button data-retry="${t.id}" title="${esc(t.error || '')}">Retry</button>` : ''}</div>`).join('')}`).join('') || (b ? '<div class="empty">Iris is reading the brief…</div>' : '');
 }
 
-let contentKey = '';
+let contentKey = null;
 function renderContent(s) {
   const grid = $('#content');
   const key = (s.brief ? s.brief.id : '-') + '|' + (s.video ? s.video.id + s.video.status : '') + '|' +
@@ -565,16 +602,14 @@ function renderContent(s) {
 
 let commKey = '';
 function renderCommunity(s) {
-  const panel = $('#community-panel');
   const items = s.comments || [];
-  panel.hidden = !items.length;
-  document.querySelector('.right').classList.toggle('has-community', !!items.length);
+  $('#community-tab').hidden = !items.length;
   if (!items.length) return;
   const key = items.map(c => c.id + (c.reply ? 'r' : '')).join(',');
   if (key === commKey) return;
   commKey = key;
   const pos = items.filter(c => c.mood === 'positive').length, neg = items.filter(c => c.mood === 'negative').length, neu = items.length - pos - neg;
-  $('#mood').textContent = `${items.length} comments · ${items.filter(c => c.reply).length} answered`;
+  $('#mood').textContent = `${items.length}`;
   $('#community').innerHTML = `<div class="mood"><i style="width:${100*pos/items.length}%;background:#b8ff9a"></i><i style="width:${100*neu/items.length}%;background:rgba(255,255,255,.25)"></i><i style="width:${100*neg/items.length}%;background:var(--alert)"></i></div>` +
     items.slice().reverse().map(c => `<div class="cm"><div class="a"><b>${esc(c.author)}</b><span class="chip" style="font-size:9px;padding:0 6px">${esc(c.channel)}</span><span>day ${c.day}</span></div>
       <div>${esc(c.text)}</div>${c.reply ? `<div class="r"><b>Pim</b> · ${esc(c.reply)}</div>` : '<div class="r muted">Pim is typing…</div>'}</div>`).join('');
@@ -583,12 +618,51 @@ function renderCommunity(s) {
 function fitVideos() { for (const f of document.querySelectorAll('.post.video iframe')) { const w = f.parentElement.clientWidth; if (w) f.style.transform = `scale(${w / 720})`; } }
 window.addEventListener('resize', fitVideos);
 
+let chatKey = null, chatBusy = false;
+function renderChat(s) {
+  const box = $('#chat');
+  const items = s.chat || [];
+  const key = items.map(c => c.id).join(',') + (chatBusy ? '|busy' : '');
+  if (key === chatKey) return;
+  chatKey = key;
+  const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  let html = '';
+  if (!items.length) {
+    html = `<div class="bub ceo">Hi, I am Iris. I run this company and you are the board. Tell me about the product you want marketed and I will start the team. Ask me how things are going, or tell me what to pass on to whom.<time>now</time></div>
+      <div class="sugg"><button data-sugg="We make Nachtfiets, a €9/month bike-light subscription for Amsterdam cyclists that replaces stolen lights within 24 hours. Goal: 300 waitlist signups in two weeks before the October launch. Tone: playful, Dutch-direct.">Describe Nachtfiets</button><button data-sugg="How is the campaign going?">How is it going?</button><button data-sugg="Run the next day and tell me what Mei finds.">Run a day</button><button data-sugg="Tell Lena to be less salesy and more specific.">Give Lena a note</button></div>`;
+  } else {
+    html = items.map(c => `<div class="bub ${c.role}">${esc(c.body)}${(c.actions || []).length ? `<div class="acts">${c.actions.map(a => `<span class="chip ${c.role === 'ceo' ? 'acc' : ''}">✓ ${esc(a.label)}</span>`).join('')}</div>` : ''}<time>${new Date(c.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</time></div>`).join('');
+  }
+  if (chatBusy) html += '<div class="typing"><i></i><i></i><i></i></div>';
+  box.innerHTML = html;
+  if (nearBottom || chatBusy) box.scrollTop = box.scrollHeight;
+  const pres = $('#iris-presence');
+  const iris = s.agents.find(a => a.key === 'ceo');
+  pres.className = 'pres' + (s.company.paused ? ' off' : iris && iris.status === 'working' ? ' busy' : '');
+  pres.innerHTML = '<i></i>' + (s.company.paused ? 'paused' : iris && iris.status === 'working' ? 'busy: ' + esc(iris.current_task_title || 'working') : 'online');
+}
+async function sendChat(text) {
+  text = (text || '').trim(); if (!text || chatBusy) return;
+  chatBusy = true; $('#chat-send').disabled = true;
+  // optimistic echo
+  state.chat = [...(state.chat || []), {id: 'tmp', role: 'board', body: text, actions: [], created_at: new Date().toISOString()}];
+  renderChat(state);
+  try { await api('/api/chat', {message: text}); } catch (e) {}
+  chatBusy = false; $('#chat-send').disabled = false;
+  await poll(); $('#chat-msg').focus();
+}
+$('#chat-form').addEventListener('submit', (e) => { e.preventDefault(); const i = $('#chat-msg'); const v = i.value; i.value = ''; sendChat(v); });
+document.addEventListener('click', (e) => {
+  const sg = e.target.closest('[data-sugg]'); if (sg) { sendChat(sg.dataset.sugg); return; }
+  const tab = e.target.closest('.tab'); if (tab) { for (const t of document.querySelectorAll('.tab')) t.classList.toggle('sel', t === tab); $('#bus').hidden = tab.dataset.tab !== 'bus'; $('#community').hidden = tab.dataset.tab !== 'community'; }
+});
+
 function render(s) {
   state = s;
   if (lastBriefId && s.brief && s.brief.id !== lastBriefId) { seenMsgs = new Set(); $('#bus').innerHTML = ''; }
   if (!s.brief) { seenMsgs = new Set(); }
   lastBriefId = s.brief ? s.brief.id : null;
-  renderHeader(s); renderOrg(s); renderFlow(s); renderBus(s); renderInbox(s); renderPipeline(s); renderContent(s); renderCommunity(s); fitVideos();
+  renderHeader(s); renderOrg(s); renderFlow(s); renderBus(s); renderInbox(s); renderPipeline(s); renderContent(s); renderCommunity(s); renderChat(s); fitVideos();
   firstPoll = false;
 }
 async function poll() { try { const r = await fetch('/api/state'); if (r.ok) render(await r.json()); } catch (e) { console.warn(e); } }
@@ -596,7 +670,7 @@ async function poll() { try { const r = await fetch('/api/state'); if (r.ok) ren
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('button'); if (!btn || !state) return;
   if (btn.id === 'btn-pause') { await api(state.company.paused ? '/api/company/resume' : '/api/company/pause'); return poll(); }
-  if (btn.id === 'btn-reset') { if (confirm('Wipe the campaign and start over? Agents and budget stay.')) { await api('/api/reset'); seenMsgs = new Set(); vetoOpen = new Set(); inboxKey = contentKey = orgKey = flowKey = commKey = ''; $('#bus').innerHTML = ''; return poll(); } return; }
+  if (btn.id === 'btn-reset') { if (confirm('Wipe the campaign and start over? Agents and budget stay.')) { await api('/api/reset'); seenMsgs = new Set(); vetoOpen = new Set(); inboxKey = contentKey = orgKey = flowKey = commKey = chatKey = ''; $('#bus').innerHTML = ''; return poll(); } return; }
   if (btn.id === 'btn-demo') { await api('/api/briefs/demo?which=1'); toast('Brief handed to Iris.'); return poll(); }
   if (btn.id === 'btn-demo2') { await api('/api/briefs/demo?which=2'); toast('Second brief handed to Iris.'); return poll(); }
   if (btn.id === 'btn-new') { $('#brief-dialog').showModal(); return; }

@@ -296,6 +296,32 @@ class BoardReportOut(_Out):
     risks: list[str] = Field(default_factory=list)
 
 
+class ChatBrief(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    product_name: str = Field(..., min_length=1)
+    one_liner: str = ""
+    description: str = ""
+    audience: str = ""
+    goals: str = ""
+    tone: str = ""
+    budget_eur: float = 500
+    channels: list[str] = Field(default_factory=lambda: ["instagram", "linkedin", "x"])
+
+
+class ChatAction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    type: Literal["none", "start_brief", "simulate_day", "pause", "resume", "message_team"] = "none"
+    brief: ChatBrief | None = None
+    agent: str | None = None
+    note: str | None = None
+
+
+class ChatOut(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    reply: str = Field(..., min_length=1)
+    actions: list[ChatAction] = Field(default_factory=list)
+
+
 MODELS: dict[str, type[_Out]] = {
     "ceo": CeoOut, "researcher": ResearcherOut, "strategist": StrategistOut, "copywriter": CopywriterOut,
     "compliance": ComplianceOut, "designer": DesignerOut, "publisher": PublisherOut, "motion": MotionOut,

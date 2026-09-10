@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import logging
 import os
 import threading
@@ -14,7 +15,7 @@ from pydantic import ValidationError
 import db
 import models
 import tools
-from agents import AGENTS, MODES, SPECIALIST_SCHEMA, specialist_prompt
+from agents import AGENTS, CHAT_PROMPT, CHAT_SCHEMA, MODES, SPECIALIST_SCHEMA, specialist_prompt
 
 log = logging.getLogger("ghost.runtime")
 ROOT = Path(__file__).parent
@@ -1009,3 +1010,208 @@ def start_orchestrator() -> threading.Thread:
 
 def stop_orchestrator() -> None:
     _stop.set()
+
+
+# ------------------------------------------------------------------ board-facing operations
+
+def create_brief(b: dict) -> str:
+    """Insert a brief and the CEO's first task. `b` has the BriefIn fields."""
+    known = ("instagram", "linkedin", "x")
+    channels = [c for c in (str(x).strip().lower() for x in (b.get("channels") or [])) if c in known]
+    channels = list(dict.fromkeys(channels)) or list(known)
+    row = {k: b.get(k, "") for k in ("product_name", "one_liner", "description", "audience", "goals", "tone")}
+    row.update({"budget_eur": float(b.get("budget_eur") or 0), "channels": channels, "active_channels": channels,
+                "status": "new", "day": 0})
+    bid = db.insert("briefs", row)
+    db.insert("tasks", {"brief_id": bid, "agent_key": "ceo", "title": f"Plan the campaign for {row['product_name']}",
+                        "input": {}, "depends_on": [], "status": "ready", "round": 1})
+    post_message(bid, "board", "ceo", "handoff", f"New brief from the board: {row['product_name']}. Iris, it is yours.")
+    return bid
+
+
+def simulate_day(brief_id: str) -> dict:
+    """One simulated day: metrics, comments, standup, community, analyst. Raises ValueError if not possible."""
+    brief = db.get("briefs", brief_id)
+    if not brief:
+        raise ValueError("no such brief")
+    published = db.query("content", "brief_id = ? AND status = 'published'", [brief_id])
+    if not published:
+        raise ValueError("nothing published yet")
+    if db.query("tasks", "brief_id = ? AND agent_key = 'analyst' AND status IN ('ready','running','blocked')", [brief_id]):
+        raise ValueError("analyst is already working on the last day")
+    day = (brief.get("day") or 0) + 1
+    if tools.env_flag("MOCK_LLM") and day > tools.MOCK_MAX_ROUNDS:
+        raise ValueError(f"mock mode supports {tools.MOCK_MAX_ROUNDS} simulated days; set MOCK_LLM=0 for more")
+    plans = db.query("ad_plans", "brief_id = ?", [brief_id], order="created_at DESC", limit=1)
+    rows = tools.simulate_metrics(brief, day, published)
+    tools.apply_paid_media(rows, published, plans[0]["allocation"] if plans else None, f"{brief_id}:{day}")
+    for row in rows:
+        db.insert("metrics", row)
+    for cm in tools.simulate_comments(brief, day, published):
+        db.insert("comments", cm)
+    db.update("briefs", brief_id, {"day": day})
+    rnd = _current_round(brief_id)
+    post_message(brief_id, "board", "all", "status",
+                 f"Day {day} is over. Iris, run the standup. Pim, the comments are in. Mei, tell us what happened.")
+    db.insert("tasks", {"brief_id": brief_id, "agent_key": "ceo", "title": f"Day {day} standup",
+                        "input": {"mode": "standup", "day": day}, "depends_on": [], "status": "ready", "round": rnd})
+    cm_id = db.insert("tasks", {"brief_id": brief_id, "agent_key": "community", "title": f"Reply to day {day} comments",
+                                "input": {"day": day}, "depends_on": [], "status": "ready", "round": rnd})
+    db.insert("tasks", {"brief_id": brief_id, "agent_key": "analyst", "title": f"Analyse day {day} results",
+                        "input": {"day": day}, "depends_on": [cm_id], "status": "blocked", "round": rnd})
+    return {"ok": True, "day": day, "content": len(published)}
+
+
+# ------------------------------------------------------------------ chat with the CEO
+
+def _chat_state(brief: dict | None) -> dict:
+    c = company()
+    st = {"company": {"paused": bool(c["paused"]), "spent_eur": round(c["spent_eur"], 2), "budget_eur": c["budget_eur"]},
+          "agents_working": [{"name": agent_name(a["key"]), "on": (db.get("tasks", a["current_task_id"]) or {}).get("title")}
+                             for a in db.query("agents", "status = 'working'")],
+          "brief": None}
+    if not brief:
+        return st
+    tasks = db.query("tasks", "brief_id = ?", [brief["id"]], order="created_at ASC")
+    content = db.query("content", "brief_id = ?", [brief["id"]])
+    pending = [x for x in content if x["status"] == "pending_approval"]
+    st["brief"] = {"product_name": brief["product_name"], "campaign_name": brief.get("campaign_name"),
+                   "status": brief["status"], "day": brief.get("day") or 0, "round": _current_round(brief["id"]),
+                   "active_channels": active_channels(brief), "objective": brief.get("objective")}
+    st["pending_approvals"] = [{"channel": x["channel"], "headline": x["headline"]} for x in pending]
+    st["content"] = {"published": len([x for x in content if x["status"] == "published"]),
+                     "vetoed": len([x for x in content if x["status"] == "vetoed"]),
+                     "blocked_by_compliance": len([x for x in content if x["status"] == "blocked"])}
+    st["tasks"] = [{"agent": agent_name(t["agent_key"]), "title": t["title"], "status": t["status"]}
+                   for t in tasks if t["status"] not in ("done",)][-8:]
+    perf = [p for p in post_performance(brief["id"]) if p["status"] == "published"]
+    if perf:
+        st["performance"] = [{k: p[k] for k in ("round", "channel", "headline", "days_live", "ctr_per_day", "signups", "ad_spend_eur")}
+                             for p in perf]
+    an = _latest_output(brief["id"], "analyst")
+    if an:
+        st["latest_analyst_report"] = an.get("report")
+    rep = db.query("reports", "brief_id = ?", [brief["id"]], order="created_at DESC", limit=1)
+    if rep:
+        st["latest_board_report"] = {"headline": rep[0]["headline"], "next": rep[0]["body"].get("next")}
+    plan = db.query("ad_plans", "brief_id = ?", [brief["id"]], order="created_at DESC", limit=1)
+    if plan:
+        st["ad_plan"] = plan[0]["allocation"]
+    vid = db.query("videos", "brief_id = ?", [brief["id"]], order="created_at DESC", limit=1)
+    if vid:
+        st["video"] = {"title": vid[0]["title"], "status": vid[0]["status"]}
+    st["recent_bus"] = [f"{agent_name(m['from_agent']) if m['from_agent'] != 'board' else 'Board'}: {m['body'][:160]}"
+                        for m in reversed(db.query("messages", "brief_id = ?", [brief["id"]], order="created_at DESC", limit=8))]
+    return st
+
+
+AGENT_ALIASES = {"nora": "researcher", "bram": "strategist", "lena": "copywriter", "sofia": "compliance", "kofi": "designer",
+                 "tariq": "publisher", "jonas": "motion", "jules": "paid_media", "pim": "community", "mei": "analyst",
+                 "otto": "cfo", "iris": "ceo"}
+
+
+def _mock_chat(message: str, brief: dict | None, st: dict) -> dict:
+    """Deterministic Iris for mock mode: understands briefs, days, pause/resume, status, team notes."""
+    m = message.lower().strip()
+    if not brief:
+        if any(w in m for w in ("nachtfiets", "demo", "bike light")):
+            demo = json.loads((ROOT / "demo_brief.json").read_text(encoding="utf-8"))
+            return {"reply": "Nachtfiets, the bike-light subscription. Good brief, I know Amsterdam. I am starting the "
+                             "company on it now: Nora maps the market first, Bram plans, Lena writes, and you will see the "
+                             "posts in your inbox with posters before anything goes live.",
+                    "actions": [{"type": "start_brief", "brief": demo}]}
+        if len(m.split()) >= 8:
+            words = [w.strip(".,!?") for w in message.split()]
+            name = next((w for w in words[:12] if w[:1].isupper() and w.lower() not in ("i", "we", "our", "it", "a")), "Your product")
+            brief_out = {"product_name": name, "one_liner": message.strip()[:160], "description": message.strip(),
+                         "audience": "people who have the problem this solves", "goals": "300 signups in 2 weeks",
+                         "tone": "clear, confident, a little cheeky", "budget_eur": 500, "channels": ["instagram", "linkedin", "x"]}
+            return {"reply": f"Understood. I am starting the company on {name}. You did not give me an audience, a goal or a "
+                             "budget, so I assumed a consumer audience, 300 signups in two weeks and EUR 500; tell me if that is "
+                             "wrong and I will correct the brief. Nora starts on the market now.",
+                    "actions": [{"type": "start_brief", "brief": brief_out}]}
+        return {"reply": "Hi, I am Iris. I run this place, and you are the board. Tell me about the product you want marketed: "
+                         "what it is, who it is for, what you want to happen in two weeks. One paragraph is enough; I will fill "
+                         "in the rest and start the team.", "actions": []}
+    b = st["brief"]
+    if any(w in m for w in ("pause", "stop everything", "kill")):
+        return {"reply": "Pausing the company now. Everyone finishes their current call and stops. Say resume when you want them back.",
+                "actions": [{"type": "pause"}]}
+    if any(w in m for w in ("resume", "continue", "unpause", "start again")):
+        return {"reply": "Resuming. The team picks up where it stopped.", "actions": [{"type": "resume"}]}
+    if any(w in m for w in ("next day", "simulate", "a day", "run a day", "advance", "results")):
+        if st["content"]["published"] == 0:
+            return {"reply": "Nothing is live yet, so there is no day to run. " + (f"{len(st['pending_approvals'])} posts are waiting for your approval in the inbox." if st.get("pending_approvals") else "Lena is still writing."), "actions": []}
+        return {"reply": f"Running day {b['day'] + 1}. I will hold the standup, Pim answers the comments, Mei reads the numbers and "
+                         "tells Bram what to change. Give it a minute.", "actions": [{"type": "simulate_day"}]}
+    for alias, key in AGENT_ALIASES.items():
+        if key != "ceo" and re.search(rf"\b(tell|ask|let)\b.*\b{alias}\b", m):
+            note = re.split(rf"\b{alias}\b", message, flags=re.I)[-1].strip(" :,to") or message
+            return {"reply": f"Passed to {alias.capitalize()}: \"{note}\". It goes on the team channel and into the next task.",
+                    "actions": [{"type": "message_team", "agent": key, "note": note}]}
+    pending = st.get("pending_approvals") or []
+    lines = [f"{b['product_name']}, campaign {b.get('campaign_name') or 'in planning'}, {b['status']}, day {b['day']}, round {b['round']}."]
+    if pending:
+        lines.append(f"{len(pending)} post(s) are waiting for you in the inbox: " + "; ".join(p["headline"] for p in pending[:3]) + ".")
+    if st.get("performance"):
+        top = max(st["performance"], key=lambda p: p["ctr_per_day"] or 0)
+        lines.append(f"Best post so far: \"{top['headline']}\" on {top['channel']} at {round(100 * (top['ctr_per_day'] or 0), 1)} percent click-through per day, {top['signups']} signups.")
+    if st.get("latest_analyst_report"):
+        lines.append("Mei's last read: " + st["latest_analyst_report"][:200])
+    if st.get("agents_working"):
+        w = st["agents_working"][0]
+        lines.append(f"Right now {w['name']} is on: {w['on']}.")
+    lines.append(f"Spend EUR {st['company']['spent_eur']:.2f} of EUR {st['company']['budget_eur']:.2f}.")
+    return {"reply": " ".join(lines), "actions": []}
+
+
+def chat(message: str) -> dict:
+    """Board member talks to Iris. Stores both turns, executes actions, returns the CEO turn."""
+    message = (message or "").strip()[:2000]
+    if not message:
+        raise ValueError("empty message")
+    brief_id = current_brief_id()
+    brief = db.get("briefs", brief_id) if brief_id else None
+    db.insert("chat", {"brief_id": brief_id, "role": "board", "body": message, "actions": []})
+    st = _chat_state(brief)
+    history = db.query("chat", order="created_at DESC", limit=12)
+    if tools.env_flag("MOCK_LLM"):
+        out = _mock_chat(message, brief, st)
+        tin = tout = 0
+    else:
+        user = ("## Company state right now\n" + _j(st) + "\n\n## Recent chat (oldest first)\n"
+                + "\n".join(f"{'Board' if h['role'] == 'board' else 'Iris'}: {h['body']}" for h in reversed(history[1:]))
+                + f"\n\n## The board member just said\n{message}")
+        system = CHAT_PROMPT + "\n\nRespond with a single JSON object matching this schema and nothing else:\n" + json.dumps(CHAT_SCHEMA)
+        text, tin, tout = tools.call_llm("ceo", system, user, CHAT_SCHEMA, "chat")
+        out = models.ChatOut.model_validate(tools.parse_json(text)).model_dump()
+    done = []
+    for a in out.get("actions") or []:
+        t = a.get("type")
+        try:
+            if t == "start_brief" and a.get("brief"):
+                bid = create_brief(a["brief"])
+                done.append({"type": t, "label": f"started the company on {a['brief']['product_name']}", "brief_id": bid})
+                brief_id = bid
+            elif t == "simulate_day" and brief_id:
+                r = simulate_day(brief_id)
+                done.append({"type": t, "label": f"day {r['day']} is running"})
+            elif t == "pause":
+                if not company()["paused"]:
+                    pause_company("Board paused the company through Iris.")
+                done.append({"type": t, "label": "company paused"})
+            elif t == "resume":
+                if company()["paused"]:
+                    resume_company()
+                done.append({"type": t, "label": "company resumed"})
+            elif t == "message_team" and a.get("agent") and a.get("note"):
+                key = AGENT_ALIASES.get(a["agent"].lower(), a["agent"])
+                if db.get("agents", key, id_col="key"):
+                    post_message(brief_id, "ceo", key, "handoff", f"From the board, via me: {a['note']}")
+                    done.append({"type": t, "label": f"told {agent_name(key)}"})
+        except ValueError as e:
+            out["reply"] = out["reply"].rstrip() + f" (I could not do that: {e}.)"
+    if tin or tout:
+        record_spend("ceo", "chat", tin, tout)
+    cid = db.insert("chat", {"brief_id": brief_id, "role": "ceo", "body": out["reply"], "actions": done})
+    return {"id": cid, "reply": out["reply"], "actions": done}

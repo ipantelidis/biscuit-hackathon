@@ -13,6 +13,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Request  # noqa: E402
 from fastapi.responses import FileResponse, HTMLResponse, Response  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
@@ -44,6 +45,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Ghost Agency", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
 
 
 # ------------------------------------------------------------------ pages
@@ -167,6 +169,7 @@ def state():
         "ad_plan": ad_plans[0] if ad_plans else None,
         "ad_spend_eur": ad_spend,
         "report": reports[0] if reports else None,
+        "chat": list(reversed(db.query("chat", order="created_at DESC", limit=40))),
     }
 
 
@@ -184,12 +187,7 @@ class BriefIn(BaseModel):
 
 
 def create_brief(b: BriefIn) -> str:
-    bid = db.insert("briefs", {**b.model_dump(), "status": "new", "day": 0, "active_channels": list(b.channels)})
-    db.insert("tasks", {"brief_id": bid, "agent_key": "ceo", "title": f"Plan the campaign for {b.product_name}",
-                        "input": {}, "depends_on": [], "status": "ready", "round": 1})
-    runtime.post_message(bid, "board", "ceo", "handoff",
-                         f"New brief from the board: {b.product_name}. Iris, it is yours.")
-    return bid
+    return runtime.create_brief(b.model_dump())
 
 
 @app.post("/api/briefs")
@@ -222,35 +220,30 @@ def decide(content_id: str, d: Decision):
 
 @app.post("/api/briefs/{brief_id}/simulate_day")
 def simulate_day(brief_id: str):
-    brief = db.get("briefs", brief_id)
-    if not brief:
-        raise HTTPException(404, "no such brief")
-    published = db.query("content", "brief_id = ? AND status = 'published'", [brief_id])
-    if not published:
-        raise HTTPException(409, "nothing published yet")
-    if db.query("tasks", "brief_id = ? AND agent_key = 'analyst' AND status IN ('ready','running')", [brief_id]):
-        raise HTTPException(409, "analyst is already working on the last day")
-    day = (brief.get("day") or 0) + 1
-    if tools.env_flag("MOCK_LLM") and day > tools.MOCK_MAX_ROUNDS:
-        raise HTTPException(409, f"mock mode supports {tools.MOCK_MAX_ROUNDS} simulated days; set MOCK_LLM=0 for more")
-    plans = db.query("ad_plans", "brief_id = ?", [brief_id], order="created_at DESC", limit=1)
-    rows = tools.simulate_metrics(brief, day, published)
-    tools.apply_paid_media(rows, published, plans[0]["allocation"] if plans else None, f"{brief_id}:{day}")
-    for row in rows:
-        db.insert("metrics", row)
-    for cm in tools.simulate_comments(brief, day, published):
-        db.insert("comments", cm)
-    db.update("briefs", brief_id, {"day": day})
-    rnd = runtime._current_round(brief_id)
-    runtime.post_message(brief_id, "board", "all", "status",
-                         f"Day {day} is over. Iris, run the standup. Pim, the comments are in. Mei, tell us what happened.")
-    db.insert("tasks", {"brief_id": brief_id, "agent_key": "ceo", "title": f"Day {day} standup",
-                        "input": {"mode": "standup", "day": day}, "depends_on": [], "status": "ready", "round": rnd})
-    cm_id = db.insert("tasks", {"brief_id": brief_id, "agent_key": "community", "title": f"Reply to day {day} comments",
-                                "input": {"day": day}, "depends_on": [], "status": "ready", "round": rnd})
-    db.insert("tasks", {"brief_id": brief_id, "agent_key": "analyst", "title": f"Analyse day {day} results",
-                        "input": {"day": day}, "depends_on": [cm_id], "status": "blocked", "round": rnd})
-    return {"ok": True, "day": day, "content": len(published)}
+    try:
+        return runtime.simulate_day(brief_id)
+    except ValueError as e:
+        raise HTTPException(404 if "no such" in str(e) else 409, str(e))
+
+
+class ChatIn(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000)
+
+
+@app.post("/api/chat")
+def chat(c: ChatIn):
+    try:
+        return runtime.chat(c.message)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:  # the model call failed; keep the chat usable
+        log.exception("chat failed")
+        raise HTTPException(502, f"Iris could not answer: {str(e)[:160]}")
+
+
+@app.get("/api/chat")
+def chat_history(limit: int = 40):
+    return {"chat": list(reversed(db.query("chat", order="created_at DESC", limit=limit)))}
 
 
 @app.post("/api/company/pause")

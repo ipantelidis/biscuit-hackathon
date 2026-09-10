@@ -113,6 +113,16 @@ day opens with a standup, and vetoed posts feed back into the next round's brief
   Notes expire after one round for copy and two for design.
 - **Posters that fit.** Headlines are capped at 6 words and sublines at 12 (the designer is asked again
   otherwise), then shrunk to fit their column; nothing overflows.
+
+## Real photography and footage
+
+Posters are built on real licensed photographs and the campaign video on real stock clips. Kofi and
+Jonas describe the shot (`photo_query`); the runtime licenses it: **Pexels** (photos and videos, set
+`PEXELS_API_KEY`, free) with **Wikimedia Commons** as the keyless photo fallback. Files are cached in
+`media/photos` and `media/clips` and reused across runs; a photo or clip is never used twice in one
+campaign. Credits appear on the campaign page. Without any source the poster falls back to a clean
+typographic layout. Layouts: `photo` (full-bleed, type over a gradient), `split` (photo over a colour
+band), `frame` (print-ad frame). Channel voices: Instagram fun, X dry, LinkedIn formal.
 - **Mock mode** supports three simulated days and says so on the fourth.
 
 ## Demo script (5 minutes)

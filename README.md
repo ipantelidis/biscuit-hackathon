@@ -19,7 +19,8 @@ once (or set `MOTION_RENDER=0` to keep the animated HTML version only).
 
 Real mode: set `ANTHROPIC_API_KEY` in `.env`, set `MOCK_LLM=0` (and `MOCK_SEARCH=0` with a
 `TAVILY_API_KEY` if you want live research). The model is `LLM_MODEL` (default `claude-sonnet-5`);
-`LLM_EFFORT=low` keeps a round under ~90 seconds.
+`LLM_EFFORT=low` keeps it quick: a full run (round 1, a simulated day, round 2, all twelve agents plus a hire)
+takes about 4.5 minutes and costs about EUR 0.40.
 
 Tests (whole company, round 1 and round 2, in mock mode):
 

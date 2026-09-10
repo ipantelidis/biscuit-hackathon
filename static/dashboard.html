@@ -385,8 +385,12 @@ function renderHeader(s) {
 }
 
 /* ---------- staff ---------- */
+let orgKey = '';
 function renderOrg(s) {
   for (const a of s.agents) if (a.hired) HIRED[a.key] = {name: a.display_name.split(' (')[0], color: a.color || '#ffd166'};
+  const key = s.agents.map(a => a.key + a.status + a.tokens_in + a.tokens_out + (a.current_task_id || '')).join(',') + s.company.paused;
+  if (key === orgKey) return;
+  orgKey = key;
   const working = s.agents.filter(a => a.status === 'working').length;
   $('#staff-sum').textContent = working ? `${working} working` : s.company.paused ? 'paused' : `${s.agents.length} idle`;
   $('#org').innerHTML = s.agents.map(a => `
@@ -406,7 +410,11 @@ const NODES = {ceo:[50,55], researcher:[170,55], strategist:[290,55], copywriter
 const EDGES = [['ceo','researcher'],['researcher','strategist'],['strategist','copywriter'],['copywriter','compliance'],['compliance','designer'],['designer','publisher'],
                ['publisher','motion'],['publisher','paid_media'],['paid_media','cfo'],
                ['publisher','community','loop'],['community','analyst'],['analyst','strategist','loop']];
+let flowKey = '';
 function renderFlow(s) {
+  const key = s.tasks.map(t => t.id + t.status).join(',');
+  if (key === flowKey) return;
+  flowKey = key;
   const latest = {};
   for (const t of s.tasks) { const cur = latest[t.agent_key]; if (!cur || t.round > cur.round || (t.round === cur.round && t.created_at > cur.created_at)) latest[t.agent_key] = t; }
   const nodeState = (k) => latest[k] ? latest[k].status : 'idle';
@@ -513,8 +521,13 @@ function renderPipeline(s) {
       ${t.status === 'failed' ? `<button data-retry="${t.id}" title="${esc(t.error || '')}">Retry</button>` : ''}</div>`).join('')}`).join('') || (b ? '<div class="empty">Iris is reading the brief…</div>' : '');
 }
 
+let contentKey = '';
 function renderContent(s) {
   const grid = $('#content');
+  const key = (s.brief ? s.brief.id : '-') + '|' + (s.video ? s.video.id + s.video.status : '') + '|' +
+    s.content.map(c => c.id + c.status + (c.has_asset ? 'a' : '') + (c.metrics ? c.metrics.impressions : '')).join(',');
+  if (key === contentKey) return;
+  contentKey = key;
   if (!s.brief) {
     $('#content-count').textContent = '';
     grid.innerHTML = `<div class="hero" style="grid-column:1/-1">
@@ -569,7 +582,7 @@ async function poll() { try { const r = await fetch('/api/state'); if (r.ok) ren
 document.addEventListener('click', async (e) => {
   const btn = e.target.closest('button'); if (!btn || !state) return;
   if (btn.id === 'btn-pause') { await api(state.company.paused ? '/api/company/resume' : '/api/company/pause'); return poll(); }
-  if (btn.id === 'btn-reset') { if (confirm('Wipe the campaign and start over? Agents and budget stay.')) { await api('/api/reset'); seenMsgs = new Set(); vetoOpen = new Set(); inboxKey = ''; $('#bus').innerHTML = ''; return poll(); } return; }
+  if (btn.id === 'btn-reset') { if (confirm('Wipe the campaign and start over? Agents and budget stay.')) { await api('/api/reset'); seenMsgs = new Set(); vetoOpen = new Set(); inboxKey = contentKey = orgKey = flowKey = commKey = ''; $('#bus').innerHTML = ''; return poll(); } return; }
   if (btn.id === 'btn-demo') { await api('/api/briefs/demo?which=1'); toast('Brief handed to Iris.'); return poll(); }
   if (btn.id === 'btn-demo2') { await api('/api/briefs/demo?which=2'); toast('Second brief handed to Iris.'); return poll(); }
   if (btn.id === 'btn-new') { $('#brief-dialog').showModal(); return; }

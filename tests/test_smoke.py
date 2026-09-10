@@ -68,7 +68,7 @@ def test_full_loop(client):
     published = [c for c in s["content"] if c["status"] == "published"]
     assert len(published) == 2
     page = client.get(f"/campaign/{bid}")
-    assert page.status_code == 200 and "No humans were employed" in page.text
+    assert page.status_code == 200 and "were employed in the making of this campaign" in page.text
 
     # round 2: the loop closes without human prompting
     r = client.post(f"/api/briefs/{bid}/simulate_day").json()

@@ -60,6 +60,8 @@
   .social .foot { margin-top:auto; padding:12px 16px 14px; display:flex; align-items:center; gap:14px; font-family:var(--mono); font-size:12px; color:var(--ink-2); border-top:1px solid var(--line); }
   .social .foot b { color:var(--ink); font-weight:500; }
   .social .foot .when { margin-left:auto; }
+  .credit { padding:0 16px 10px; font-size:10.5px; color:#9aa0a8; font-family:var(--mono); }
+  .credit a { color:inherit; }
   .revised { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#b3164a; background:#ffe3ec; padding:4px 9px; border-radius:8px; }
   .ctabtn { display:inline-block; margin:6px 16px 4px; font-weight:700; color:var(--ink); border:1.5px solid var(--ink); padding:7px 12px; border-radius:10px; font-size:14px; }
   .empty { border:1px dashed var(--line); border-radius:18px; padding:48px; text-align:center; color:var(--ink-2); }
@@ -118,6 +120,7 @@
         {% if p.round > 1 %}<span class="revised">revised after day {{ p.round - 1 }}</span>{% endif %}
         <span class="when">{{ p.publish_slot or 'Day 1' }}</span>
       </div>
+      {% if p.photo_credit %}<div class="credit">Photo: {% if p.photo_url %}<a href="{{ p.photo_url }}" target="_blank" rel="noopener">{{ p.photo_credit }}</a>{% else %}{{ p.photo_credit }}{% endif %}</div>{% endif %}
     </article>
     {% endfor %}
   </div>

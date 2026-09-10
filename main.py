@@ -69,6 +69,9 @@ def campaign_page(brief_id: str, request: Request):
     for c in comments:
         c["on_post"] = post_titles.get(c["content_id"], "")
     for p in posts:
+        asset = db.get("assets", p["asset_id"]) if p.get("asset_id") else None
+        p["photo_credit"] = asset.get("photo_credit") if asset else None
+        p["photo_url"] = asset.get("photo_url") if asset else None
         ms = db.query("metrics", "content_id = ?", [p["id"]])
         if ms:
             imp = sum(m["impressions"] for m in ms)
@@ -287,10 +290,11 @@ def retry(task_id: str):
 def reset():
     db.reset_all()
     for f in runtime.MEDIA_DIR.glob("*"):
-        try:
-            f.unlink()
-        except OSError:
-            pass
+        if f.is_file():  # keep media/photos: licensed photos are reusable across runs
+            try:
+                f.unlink()
+            except OSError:
+                pass
     return {"ok": True}
 
 

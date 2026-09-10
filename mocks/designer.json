@@ -1,9 +1,61 @@
 {
   "assets": [
-    {"content_index": 0, "headline": "Lost 3 lights this year?", "subline": "Same. That is why we exist.", "palette": {"bg": "#0f1a2b", "fg": "#ffffff", "accent": "#ffd400"}, "layout": "stacked", "glyph": "🔦", "alt_text": "Dark blue poster with a flashlight emoji and the words Lost 3 lights this year"},
-    {"content_index": 1, "headline": "Never ride dark", "subline": "Stolen lights replaced in 24 hours, free", "palette": {"bg": "#111111", "fg": "#fafafa", "accent": "#ff5a1f"}, "layout": "badge", "glyph": "🚲", "alt_text": "Black poster with an orange badge, a bicycle emoji and the words Never ride dark"},
-    {"content_index": 2, "headline": "EUR 60 fine, EUR 4 light", "subline": "Nachtfiets ends the loop for EUR 9 a month", "palette": {"bg": "#f4efe6", "fg": "#1a1a1a", "accent": "#2b5cff"}, "layout": "split", "glyph": "⚖️", "alt_text": "Cream poster split with blue, a scales emoji and the words EUR 60 fine EUR 4 light"},
-    {"content_index": 3, "headline": "24 hours. New lights.", "subline": "EUR 9 a month, cancel anytime", "palette": {"bg": "#1b4332", "fg": "#f1faee", "accent": "#ffd400"}, "layout": "badge", "glyph": "⏱️", "alt_text": "Green poster with a stopwatch emoji and the words 24 hours New lights"}
+    {
+      "content_index": 0,
+      "headline": "Lost 3 lights this year?",
+      "subline": "Same. That is why we exist.",
+      "palette": {
+        "bg": "#0f1a2b",
+        "fg": "#ffffff",
+        "accent": "#ffd400"
+      },
+      "layout": "photo",
+      "alt_text": "Dark blue poster with a flashlight emoji and the words Lost 3 lights this year",
+      "photo_query": "cyclist night amsterdam rain",
+      "treatment": "dark"
+    },
+    {
+      "content_index": 1,
+      "headline": "Never ride dark",
+      "subline": "Stolen lights replaced in 24 hours, free",
+      "palette": {
+        "bg": "#111111",
+        "fg": "#fafafa",
+        "accent": "#ff5a1f"
+      },
+      "layout": "split",
+      "alt_text": "Black poster with an orange badge, a bicycle emoji and the words Never ride dark",
+      "photo_query": "students bicycles amsterdam street",
+      "treatment": "dark"
+    },
+    {
+      "content_index": 2,
+      "headline": "EUR 60 fine, EUR 4 light",
+      "subline": "Nachtfiets ends the loop for EUR 9 a month",
+      "palette": {
+        "bg": "#f4efe6",
+        "fg": "#1a1a1a",
+        "accent": "#2b5cff"
+      },
+      "layout": "frame",
+      "alt_text": "Cream poster split with blue, a scales emoji and the words EUR 60 fine EUR 4 light",
+      "photo_query": "commuter bicycle office morning",
+      "treatment": "light"
+    },
+    {
+      "content_index": 3,
+      "headline": "24 hours. New lights.",
+      "subline": "EUR 9 a month, cancel anytime",
+      "palette": {
+        "bg": "#1b4332",
+        "fg": "#f1faee",
+        "accent": "#ffd400"
+      },
+      "layout": "photo",
+      "alt_text": "Green poster with a stopwatch emoji and the words 24 hours New lights",
+      "photo_query": "bicycle lamp night close-up",
+      "treatment": "dark"
+    }
   ],
   "message_to_team": "Board, posters are attached to every post: bold type, one glyph each, palettes that survive a phone screen. Tariq, ready whenever the board is."
 }

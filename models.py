@@ -149,6 +149,8 @@ class AssetSpec(BaseModel):
     content_index: int
     headline: str
     subline: str = ""
+    photo_query: str = ""
+    treatment: Literal["dark", "light"] = "dark"
 
     @field_validator("headline")
     @classmethod
@@ -160,8 +162,7 @@ class AssetSpec(BaseModel):
     def _sub(cls, v: str) -> str:
         return _max_words(v, 12, "subline")
     palette: Palette = Field(default_factory=Palette)
-    layout: Literal["stacked", "split", "badge"] = "stacked"
-    glyph: str = "*"
+    layout: Literal["photo", "split", "frame", "stacked", "badge"] = "photo"
     alt_text: str = ""
 
 
@@ -186,7 +187,8 @@ class Scene(BaseModel):
     model_config = ConfigDict(extra="ignore")
     text: str = Field(..., min_length=1)
     subtext: str = ""
-    glyph: str = ""
+    photo_query: str = ""
+    treatment: Literal["dark", "light"] = "dark"
     bg: str = "#0b0d12"
     fg: str = "#ffffff"
     accent: str = "#c6ff4a"

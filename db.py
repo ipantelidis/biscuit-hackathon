@@ -41,6 +41,7 @@ MIGRATIONS = [
     ("content", "published_day", "INTEGER"), ("content", "redesigns", "INTEGER DEFAULT 0"),
     ("metrics", "factors", "TEXT"), ("approvals", "target", "TEXT"), ("approvals", "round", "INTEGER"),
     ("briefs", "active_channels", "TEXT"),
+    ("assets", "photo_path", "TEXT"), ("assets", "photo_credit", "TEXT"), ("assets", "photo_url", "TEXT"),
 ]
 
 SCHEMA = """
@@ -84,7 +85,8 @@ CREATE TABLE IF NOT EXISTS content (
 );
 CREATE TABLE IF NOT EXISTS assets (
   id TEXT PRIMARY KEY, content_id TEXT, kind TEXT DEFAULT 'svg_poster',
-  spec TEXT, svg TEXT, alt_text TEXT, created_at TEXT, updated_at TEXT
+  spec TEXT, svg TEXT, alt_text TEXT, photo_path TEXT, photo_credit TEXT, photo_url TEXT,
+  created_at TEXT, updated_at TEXT
 );
 CREATE TABLE IF NOT EXISTS metrics (
   id TEXT PRIMARY KEY, content_id TEXT, brief_id TEXT, day INTEGER,

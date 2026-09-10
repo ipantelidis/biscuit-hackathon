@@ -6,7 +6,7 @@ from pathlib import Path
 import models
 import tools
 
-COL = {"stacked": 920, "split": 470, "badge": 920}
+COL = {"photo": 936, "split": 936, "frame": 968}
 TEXT = re.compile(r'<text x="(\d+)" y="(\d+)" font-family="[^"]+" font-size="(\d+)"[^>]*>([^<]*)</text>')
 
 
@@ -14,10 +14,13 @@ def _lines(svg):
     return [(int(m.group(3)), m.group(4)) for m in TEXT.finditer(svg)]
 
 
-def _assert_fits(spec, layout):
-    svg = tools.render_poster_svg({**spec, "layout": layout}, "Nachtfiets")
+PHOTO = {"path": str(Path("static/iris.jpg").resolve()), "credit": "test", "source_url": ""}
+
+
+def _assert_fits(spec, layout, photo=PHOTO):
+    svg = tools.render_poster_svg({**spec, "layout": layout}, "Nachtfiets", photo)
     for size, text in _lines(svg):
-        if size >= 26:  # headline and subline lines (footer labels are smaller)
+        if size >= 24 and "letter-spacing" not in text:  # headline and subline lines
             assert len(text) * size * tools.CHAR_W <= COL[layout] + 1, (layout, size, text)
 
 
@@ -26,11 +29,12 @@ def test_all_mock_specs_fit_all_layouts():
         for a in json.loads(f.read_text())["assets"]:
             for layout in COL:
                 _assert_fits(a, layout)
+                _assert_fits(a, layout, photo=None)  # flat fallback without a photo
 
 
 def test_long_headline_fits():
     spec = {"headline": "Amsterdam charges you a theft tax every autumn", "subline": "and nobody has done anything about it until now",
-            "palette": {"bg": "#111", "fg": "#fff", "accent": "#f00"}, "glyph": "⚖"}
+            "palette": {"bg": "#111", "fg": "#fff", "accent": "#f00"}}
     for layout in COL:
         _assert_fits(spec, layout)
 

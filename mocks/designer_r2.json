@@ -1,7 +1,33 @@
 {
   "assets": [
-    {"content_index": 0, "headline": "4 sets. 1 sub. EUR 9.", "subline": "Stolen lights replaced in 24 hours, free", "palette": {"bg": "#0f1a2b", "fg": "#ffffff", "accent": "#ffd400"}, "layout": "split", "glyph": "🔢", "alt_text": "Dark blue poster split with yellow, a numbers emoji and the words 4 sets 1 sub EUR 9"},
-    {"content_index": 1, "headline": "24 hours. New lights.", "subline": "EUR 9 a month, cancel anytime", "palette": {"bg": "#1b4332", "fg": "#f1faee", "accent": "#ffd400"}, "layout": "badge", "glyph": "⏱️", "alt_text": "Green poster with a stopwatch emoji and the words 24 hours New lights"}
+    {
+      "content_index": 0,
+      "headline": "4 sets. 1 sub. EUR 9.",
+      "subline": "Stolen lights replaced in 24 hours, free",
+      "palette": {
+        "bg": "#0f1a2b",
+        "fg": "#ffffff",
+        "accent": "#ffd400"
+      },
+      "layout": "split",
+      "alt_text": "Dark blue poster split with yellow, a numbers emoji and the words 4 sets 1 sub EUR 9",
+      "photo_query": "bicycle amsterdam canal evening",
+      "treatment": "dark"
+    },
+    {
+      "content_index": 1,
+      "headline": "24 hours. New lights.",
+      "subline": "EUR 9 a month, cancel anytime",
+      "palette": {
+        "bg": "#1b4332",
+        "fg": "#f1faee",
+        "accent": "#ffd400"
+      },
+      "layout": "photo",
+      "alt_text": "Green poster with a stopwatch emoji and the words 24 hours New lights",
+      "photo_query": "bike parked lamp post night",
+      "treatment": "dark"
+    }
   ],
   "message_to_team": "Board, round-two posters attached: the number is the biggest thing on the canvas, as Mei asked. Tariq, over to you."
 }

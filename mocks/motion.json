@@ -1,10 +1,50 @@
 {
   "title": "Never ride dark",
   "scenes": [
-    {"text": "Lights stolen. Again.", "subtext": "Amsterdam, every single week", "glyph": "🔦", "bg": "#0f1a2b", "fg": "#ffffff", "accent": "#ffd400", "seconds": 3, "style": "punch"},
-    {"text": "Stop paying the theft tax", "subtext": "Buying new lights is not a plan", "glyph": "", "bg": "#111111", "fg": "#fafafa", "accent": "#ff5a1f", "seconds": 3, "style": "calm"},
-    {"text": "Replaced in 24h. Free.", "subtext": "EUR 9 a month, cancel anytime", "glyph": "⏱️", "bg": "#1b4332", "fg": "#f1faee", "accent": "#c6ff4a", "seconds": 3.5, "style": "split"},
-    {"text": "Never ride dark.", "subtext": "Join the waitlist before October", "glyph": "🚲", "bg": "#0f1a2b", "fg": "#ffffff", "accent": "#ffd400", "seconds": 3, "style": "punch"}
+    {
+      "text": "Lights stolen. Again.",
+      "subtext": "Amsterdam, every single week",
+      "bg": "#0f1a2b",
+      "fg": "#ffffff",
+      "accent": "#ffd400",
+      "seconds": 3,
+      "style": "punch",
+      "photo_query": "bicycle night rain amsterdam",
+      "treatment": "dark"
+    },
+    {
+      "text": "Stop paying the theft tax",
+      "subtext": "Buying new lights is not a plan",
+      "bg": "#111111",
+      "fg": "#fafafa",
+      "accent": "#ff5a1f",
+      "seconds": 3,
+      "style": "calm",
+      "photo_query": "bike shop lights shelf",
+      "treatment": "dark"
+    },
+    {
+      "text": "Replaced in 24h. Free.",
+      "subtext": "EUR 9 a month, cancel anytime",
+      "bg": "#1b4332",
+      "fg": "#f1faee",
+      "accent": "#c6ff4a",
+      "seconds": 3.5,
+      "style": "split",
+      "photo_query": "courier cyclist city evening",
+      "treatment": "dark"
+    },
+    {
+      "text": "Never ride dark.",
+      "subtext": "Join the waitlist before October",
+      "bg": "#0f1a2b",
+      "fg": "#ffffff",
+      "accent": "#ffd400",
+      "seconds": 3,
+      "style": "punch",
+      "photo_query": "cyclist amsterdam canal night",
+      "treatment": "dark"
+    }
   ],
   "caption": "Lights stolen again? We replace them in 24h, free. EUR 9/month. Waitlist open. #Nachtfiets #Amsterdam",
   "message_to_team": "Board, storyboard is in: four scenes, pain to promise to product, 15 seconds square. The runtime is rendering it now; it will sit at the top of the campaign page."

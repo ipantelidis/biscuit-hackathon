@@ -1,7 +1,33 @@
 {
   "assets": [
-    {"content_index": 0, "headline": "Stolen at Centraal. Twice.", "subline": "Same week. Nachtfiets replaces them in 24 hours", "palette": {"bg": "#2b0f0f", "fg": "#ffffff", "accent": "#ff5a1f"}, "layout": "stacked", "glyph": "🚉", "alt_text": "Dark red poster with a station emoji and the words Stolen at Centraal Twice"},
-    {"content_index": 1, "headline": "Science Park eats lights", "subline": "New pair within 24 hours, free, EUR 9 a month", "palette": {"bg": "#f4efe6", "fg": "#1a1a1a", "accent": "#2b5cff"}, "layout": "badge", "glyph": "🔬", "alt_text": "Cream poster with a blue badge, a microscope emoji and the words Science Park eats lights"}
+    {
+      "content_index": 0,
+      "headline": "Stolen at Centraal. Twice.",
+      "subline": "Same week. Nachtfiets replaces them in 24 hours",
+      "palette": {
+        "bg": "#2b0f0f",
+        "fg": "#ffffff",
+        "accent": "#ff5a1f"
+      },
+      "layout": "photo",
+      "alt_text": "Dark red poster with a station emoji and the words Stolen at Centraal Twice",
+      "photo_query": "amsterdam central station bicycles",
+      "treatment": "dark"
+    },
+    {
+      "content_index": 1,
+      "headline": "Science Park eats lights",
+      "subline": "New pair within 24 hours, free, EUR 9 a month",
+      "palette": {
+        "bg": "#f4efe6",
+        "fg": "#1a1a1a",
+        "accent": "#2b5cff"
+      },
+      "layout": "frame",
+      "alt_text": "Cream poster with a blue badge, a microscope emoji and the words Science Park eats lights",
+      "photo_query": "bike racks university campus",
+      "treatment": "light"
+    }
   ],
   "message_to_team": "Board, round-three posters: place names big, no numbers, one dark and one light so the feed does not look like one campaign on repeat. Tariq, over to you."
 }

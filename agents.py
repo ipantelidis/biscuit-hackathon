@@ -140,9 +140,10 @@ DESIGNER_SCHEMA = _obj({
         "content_index": _i(),
         "headline": _s("<=6 words, may differ from post headline"),
         "subline": _s("<=12 words"),
+        "photo_query": _s("3-6 words describing the real photograph to license: subject, place, light, e.g. 'cyclist rain amsterdam night'"),
         "palette": _obj({"bg": _s("#hex"), "fg": _s("#hex"), "accent": _s("#hex")}),
-        "layout": _s(enum=["stacked", "split", "badge"]),
-        "glyph": _s("single emoji or short symbol"),
+        "layout": _s(enum=["photo", "split", "frame"]),
+        "treatment": _s("dark = white type over a dark gradient; light = dark type over a light gradient", enum=["dark", "light"]),
         "alt_text": _s(),
     })),
     "message_to_team": MSG,
@@ -160,7 +161,7 @@ MOTION_SCHEMA = _obj({
     "scenes": _arr(_obj({
         "text": _s("<=6 words, the big line"),
         "subtext": _s("<=12 words or empty"),
-        "glyph": _s("single emoji or empty"),
+        "photo_query": _s("3-6 words describing a real photograph for the background, or empty for a plain colour"),
         "bg": _s("#hex"), "fg": _s("#hex"), "accent": _s("#hex"),
         "seconds": _n("2-4"),
         "style": _s(enum=["punch", "calm", "split"]),
@@ -350,6 +351,10 @@ You are Lena, the Copywriter. Write num_posts posts, at least one per channel in
 brief's tone. Vary the formats: a hook post, a story post, an offer post. Headlines <=60 chars.
 Bodies: x <=240 chars, instagram 2-4 short lines, linkedin 3-5 sentences. Each post gets a CTA,
 2-5 hashtags and a one-sentence rationale.
+Channel voice, always: Instagram is the fun one: playful, visual, first person plural, a wink, at
+most two emoji, a light CTA. X is dry wit: one sharp line, no emoji, at most two hashtags. LinkedIn
+is the formal one: company voice or first person singular, no slang, no emoji, no exclamation
+marks, one concrete observation about the customer's problem, a professional CTA.
 Self-check every post and list risk_flags honestly: "unverified claim", "competitor mention",
 "price promise", "legal", or [] if clean. Never invent statistics; if a number appears, flag it.
 Write in the language of the brief. If a hired specialist delivered notes (local phrases, slang,
@@ -382,11 +387,17 @@ for is not an issue. Most posts should clear. Use content_index exactly as given
         "role_summary": "One poster spec per post",
         "system_prompt": COMPANY_CONTEXT + """
 
-You are Kofi, the Designer. For each content item you receive, produce one poster spec the
-renderer turns into a 1080x1080 poster: a punchy headline (<=6 words), a subline (<=12 words),
-a palette of three hex colours with strong contrast between bg and fg (accent may be loud),
-a layout (stacked, split or badge; vary them across items), one glyph (a single emoji), and
-alt text. Match the brief's tone. content_index must match the index of the item you were given.""",
+You are Kofi, the Designer. For each content item you receive, produce one creative spec the
+renderer turns into a 1080x1080 post built on a real licensed photograph: a headline (<=6 words),
+a subline (<=12 words), a photo_query describing the photo to license (concrete: subject, place,
+light; people doing the thing, not products on white), a palette (bg/fg for the split and frame
+layouts, accent for the small bar), a layout and a treatment. Layouts: photo = full-bleed photo
+with type over a gradient; split = photo on top, colour band with type below; frame = photo in a
+frame with type underneath, like a print ad. Vary layouts across items. No emoji, no clip art.
+Channel feel: Instagram = warm, human, playful photo and headline, bold accent; LinkedIn = formal,
+light treatment, restrained palette (navy, off-white), photo of people at work or the city, frame or
+split layout; X = dark treatment, high contrast, one short line.
+content_index must match the index of the item you were given.""",
         "output_schema": DESIGNER_SCHEMA,
     },
     "publisher": {
@@ -407,10 +418,11 @@ in the brief or the approved posts. The runtime does the actual publishing.""",
         "system_prompt": COMPANY_CONTEXT + """
 
 You are Jonas, the Motion Designer. Storyboard a 12-20 second square promo video for the campaign
-from the published posts: 4-6 scenes, each one big line (<=6 words), an optional subline, an
-optional single emoji, a palette, a duration of 2-4 seconds and a style (punch = hard cut and big
-type, calm = slow fade, split = two-colour layout). Open with the pain, land the promise, end with
-the product name and CTA. Colours must contrast. The runtime renders and records the video.""",
+from the published posts: 4-6 scenes, each one big line (<=6 words), an optional subline, a
+photo_query for a real photograph as the moving background (concrete: subject, place, light), a
+palette, a duration of 2-4 seconds and a style (punch = hard cut, calm = slow fade, split). Open
+with the pain, land the promise, end with the product name and CTA. No emoji. The runtime licenses
+the photos, adds a slow push-in, renders and records the video.""",
         "output_schema": MOTION_SCHEMA,
     },
     "paid_media": {

@@ -213,51 +213,97 @@ def _text_block(lines: list[str], x: int, y: int, size: int, fill: str, weight: 
     return "\n".join(out)
 
 
-def render_poster_svg(spec: dict, product_name: str = "") -> str:
-    """Pure function: poster spec -> 1080x1080 SVG. Never fails."""
+LEGACY_LAYOUT = {"stacked": "photo", "badge": "frame", "split": "split"}
+
+
+def _overlay(treatment: str) -> tuple[str, str]:
+    """(gradient stop colour, text colour) for a photo layout."""
+    return ("#ffffff", "#141414") if treatment == "light" else ("#000000", "#ffffff")
+
+
+def _brand(product: str, x: int, y: int, fill: str, anchor: str = "start", size: int = 22) -> str:
+    return (f'<text x="{x}" y="{y}" font-family="{FONT}" font-size="{size}" font-weight="600" letter-spacing="4" '
+            f'fill="{fill}" text-anchor="{anchor}">{html.escape(product.upper())}</text>')
+
+
+def _render_flat(spec: dict, product_name: str) -> str:
+    """No photo available: a quiet typographic poster (no emoji)."""
     pal = spec.get("palette") or {}
     bg = _hex(pal.get("bg", ""), "#141414")
     fg = _hex(pal.get("fg", ""), "#fafafa")
-    ac = _hex(pal.get("accent", ""), "#ff5a1f")
-    layout = spec.get("layout") if spec.get("layout") in ("stacked", "split", "badge") else "stacked"
+    ac = _hex(pal.get("accent", ""), "#c6ff4a")
     headline = str(spec.get("headline") or "").strip() or product_name or "Ghost Agency"
     subline = str(spec.get("subline") or "").strip()
-    glyph = html.escape(str(spec.get("glyph") or "✦").strip()[:2])
-    product = html.escape(product_name or "")
+    parts = [f'<rect width="1080" height="1080" fill="{bg}"/>',
+             f'<rect x="0" y="0" width="1080" height="14" fill="{ac}"/>',
+             _brand(product_name, 72, 110, fg)]
+    hl, hs = _fit(headline, 936, 3, (112, 96, 84, 72, 64))
+    parts.append(_text_block(hl, 72, _block_top(760, len(hl), hs), hs, fg))
+    sl, ss = _fit(subline, 936, 2, (36, 32, 28))
+    parts.append(_text_block(sl, 72, 830, ss, fg, "400"))
+    parts.append(f'<rect x="72" y="960" width="120" height="8" fill="{ac}"/>')
+    return "\n".join(parts)
 
-    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080" '
-             f'role="img" aria-label="{html.escape(str(spec.get("alt_text") or headline))}">',
-             f'<rect width="1080" height="1080" fill="{bg}"/>']
 
-    HEAD = (120, 104, 96, 84, 72, 64)
-    SUB = (42, 38, 34, 30)
-    if layout == "stacked":
-        parts.append(f'<rect x="80" y="80" width="120" height="14" fill="{ac}"/>')
-        parts.append(f'<text x="920" y="230" font-size="180" text-anchor="end" font-family="{FONT}">{glyph}</text>')
-        hl, hs = _fit(headline, 920, 3, HEAD)
-        parts.append(_text_block(hl, 80, _block_top(780, len(hl), hs), hs, fg))
-        sl, ss = _fit(subline, 920, 2, SUB)
-        parts.append(_text_block(sl, 80, 900, ss, fg, "400"))
+def render_poster_svg(spec: dict, product_name: str = "", photo: dict | None = None) -> str:
+    """Poster spec (+ optional real photo) -> 1080x1080 SVG. Never fails."""
+    pal = spec.get("palette") or {}
+    bg = _hex(pal.get("bg", ""), "#141414")
+    fg = _hex(pal.get("fg", ""), "#fafafa")
+    ac = _hex(pal.get("accent", ""), "#c6ff4a")
+    layout = spec.get("layout") or "photo"
+    layout = LEGACY_LAYOUT.get(layout, layout)
+    if layout not in ("photo", "split", "frame"):
+        layout = "photo"
+    treatment = spec.get("treatment") if spec.get("treatment") in ("dark", "light") else "dark"
+    headline = str(spec.get("headline") or "").strip() or product_name or "Ghost Agency"
+    subline = str(spec.get("subline") or "").strip()
+    alt = html.escape(str(spec.get("alt_text") or headline))
+    product = product_name or ""
+
+    head = (f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1080 1080" '
+            f'width="1080" height="1080" role="img" aria-label="{alt}">')
+    if not photo or not photo.get("path") or not Path(photo["path"]).exists():
+        return head + "\n" + _render_flat(spec, product) + "\n</svg>"
+    uri = photo_data_uri(photo["path"])
+    grad_col, txt = _overlay(treatment)
+    parts = [head, "<defs>",
+             f'<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{grad_col}" stop-opacity="0"/>'
+             f'<stop offset="0.55" stop-color="{grad_col}" stop-opacity="0.25"/><stop offset="1" stop-color="{grad_col}" stop-opacity="0.88"/></linearGradient>',
+             f'<clipPath id="top"><rect x="0" y="0" width="1080" height="640"/></clipPath>',
+             f'<clipPath id="inner"><rect x="56" y="56" width="968" height="700"/></clipPath>',
+             "</defs>"]
+    if layout == "photo":
+        parts.append(f'<image xlink:href="{uri}" x="0" y="0" width="1080" height="1080" preserveAspectRatio="xMidYMid slice"/>')
+        parts.append('<rect width="1080" height="1080" fill="url(#g)"/>')
+        parts.append(_brand(product, 72, 104, txt))
+        hl, hs = _fit(headline, 936, 3, (92, 80, 70, 62, 54))
+        top = _block_top(900 if subline else 960, len(hl), hs)
+        parts.append(f'<rect x="72" y="{top - hs - 26}" width="72" height="8" fill="{ac}"/>')
+        parts.append(_text_block(hl, 72, top, hs, txt))
+        if subline:
+            sl, ss = _fit(subline, 936, 2, (34, 30, 26))
+            parts.append(_text_block(sl, 72, 952, ss, txt, "400"))
     elif layout == "split":
-        parts.append(f'<rect x="540" y="0" width="540" height="1080" fill="{ac}"/>')
-        parts.append(f'<text x="810" y="600" font-size="260" text-anchor="middle" font-family="{FONT}">{glyph}</text>')
-        hl, hs = _fit(headline, 470, 4, HEAD)
-        parts.append(_text_block(hl, 70, _block_top(700, len(hl), hs), hs, fg))
-        sl, ss = _fit(subline, 470, 3, SUB)
-        parts.append(_text_block(sl, 70, _block_top(930, len(sl), ss), ss, fg, "400"))
-    else:  # badge
-        parts.append(f'<circle cx="540" cy="400" r="280" fill="{ac}"/>')
-        parts.append(f'<text x="540" y="470" font-size="210" text-anchor="middle" font-family="{FONT}">{glyph}</text>')
-        hl, hs = _fit(headline, 920, 2, (84, 72, 64, 56))
-        parts.append(_text_block(hl, 540, _block_top(870, len(hl), hs), hs, fg, "700", "middle"))
-        sl, ss = _fit(subline, 920, 2, (34, 30, 26))
-        parts.append(_text_block(sl, 540, 870 + 58, ss, fg, "400", "middle"))
-
-    if product:
-        parts.append(f'<text x="80" y="1020" font-family="{FONT}" font-size="28" font-weight="500" '
-                     f'fill="{fg}" opacity="0.7">{product}</text>')
-    parts.append(f'<text x="1000" y="1020" font-family="{FONT}" font-size="22" text-anchor="end" '
-                 f'fill="{fg}" opacity="0.5">Ghost Agency</text>')
+        parts.append(f'<rect width="1080" height="1080" fill="{bg}"/>')
+        parts.append(f'<image xlink:href="{uri}" x="0" y="0" width="1080" height="640" preserveAspectRatio="xMidYMid slice" clip-path="url(#top)"/>')
+        parts.append(f'<rect x="72" y="700" width="72" height="8" fill="{ac}"/>')
+        hl, hs = _fit(headline, 936, 2, (80, 70, 62, 54))
+        parts.append(_text_block(hl, 72, 700 + 8 + hs + 16, hs, fg))
+        if subline:
+            sl, ss = _fit(subline, 936, 2, (32, 28, 26))
+            parts.append(_text_block(sl, 72, 700 + 8 + hs + 16 + (len(hl) - 1) * int(hs * 1.08) + 56, ss, fg, "400"))
+        parts.append(_brand(product, 1008, 1020, fg, "end"))
+    else:  # frame
+        parts.append(f'<rect width="1080" height="1080" fill="{bg}"/>')
+        parts.append(f'<image xlink:href="{uri}" x="56" y="56" width="968" height="700" preserveAspectRatio="xMidYMid slice" clip-path="url(#inner)"/>')
+        hl, hs = _fit(headline, 968, 2, (64, 56, 50, 44))
+        parts.append(_text_block(hl, 56, 756 + 24 + hs, hs, fg))
+        if subline:
+            sl, ss = _fit(subline, 968, 2, (28, 26, 24))
+            parts.append(_text_block(sl, 56, 756 + 24 + hs + (len(hl) - 1) * int(hs * 1.08) + 44, ss, fg, "400"))
+        parts.append(f'<rect x="56" y="1004" width="72" height="6" fill="{ac}"/>')
+        parts.append(_brand(product, 1024, 1012, fg, "end", 18))
     parts.append("</svg>")
     return "\n".join(parts)
 
@@ -416,52 +462,56 @@ def simulate_comments(brief: dict, day: int, published: list[dict], per_post: in
 # ------------------------------------------------------------------ motion (video)
 
 def render_motion_html(spec: dict, product_name: str = "", loop: bool = True) -> str:
-    """Storyboard spec -> self-contained animated HTML (720x720). Pure CSS, no JS, never fails."""
+    """Storyboard spec -> self-contained animated HTML (720x720). Real photos with a slow push-in
+    when a scene has one; pure CSS, no JS, never fails."""
     scenes = list(spec.get("scenes") or [])
     if not scenes:
-        scenes = [{"text": product_name or "Ghost Agency", "subtext": "", "glyph": "", "bg": "#0b0d12",
-                   "fg": "#ffffff", "accent": "#c6ff4a", "seconds": 3, "style": "punch"}]
+        scenes = [{"text": product_name or "Ghost Agency", "subtext": "", "bg": "#0b0d12", "fg": "#ffffff",
+                   "accent": "#c6ff4a", "seconds": 3, "style": "punch"}]
     scenes = scenes + [{"text": product_name or spec.get("title") or "Ghost Agency", "subtext": "Produced by Ghost Agency",
-                        "glyph": "", "bg": "#07090d", "fg": "#ffffff", "accent": "#c6ff4a", "seconds": 2.5, "style": "calm"}]
+                        "bg": "#07090d", "fg": "#ffffff", "accent": "#c6ff4a", "seconds": 2.5, "style": "calm", "photo": None}]
     total = sum(float(s.get("seconds") or 3) for s in scenes)
     css, divs, t = [], [], 0.0
+    it = "infinite" if loop else "1"
     for i, s in enumerate(scenes):
         dur = float(s.get("seconds") or 3)
         a, b = t / total * 100, (t + dur) / total * 100
         t += dur
         bg, fg, ac = _hex(s.get("bg", ""), "#0b0d12"), _hex(s.get("fg", ""), "#ffffff"), _hex(s.get("accent", ""), "#c6ff4a")
         style = s.get("style") if s.get("style") in ("punch", "calm", "split") else "punch"
-        fade = 0.6 if style == "calm" else 0.15
+        fade = 0.6 if style == "calm" else 0.2
         fa = min(b, a + fade / total * 100)
         fb = max(fa, b - fade / total * 100)
-        css.append(f".s{i}{{animation:sh{i} {total}s {'infinite' if loop else '1'} both;background:{bg};color:{fg}}}"
-                   f".s{i} .ac{{background:{ac}}}.s{i} .g{{color:{ac}}}"
+        photo = s.get("photo")
+        uri = photo_data_uri(photo) if photo and Path(str(photo)).exists() else None
+        treatment = s.get("treatment") if s.get("treatment") in ("dark", "light") else "dark"
+        txt = "#141414" if (uri and treatment == "light") else (fg if not uri else "#ffffff")
+        grad = "255,255,255" if treatment == "light" else "0,0,0"
+        css.append(f".s{i}{{animation:sh{i} {total}s {it} both;background:{bg};color:{txt}}}.s{i} .ac{{background:{ac}}}"
                    f"@keyframes sh{i}{{0%,{a:.3f}%{{opacity:0;visibility:hidden}}{fa:.3f}%{{opacity:1;visibility:visible}}"
                    f"{fb:.3f}%{{opacity:1;visibility:visible}}{b:.3f}%,100%{{opacity:0;visibility:hidden}}}}"
-                   f".s{i} .txt{{animation:tx{i} {total}s {'infinite' if loop else '1'} both}}"
-                   f"@keyframes tx{i}{{0%,{a:.3f}%{{transform:translateY({'22px' if style == 'punch' else '8px'}) scale({'.92' if style == 'punch' else '1'})}}"
-                   f"{fa:.3f}%,100%{{transform:none}}}}")
-        glyph = html.escape(str(s.get("glyph") or "")[:2])
+                   f".s{i} .txt{{animation:tx{i} {total}s {it} both}}"
+                   f"@keyframes tx{i}{{0%,{a:.3f}%{{transform:translateY({'22px' if style == 'punch' else '8px'})}}{fa:.3f}%,100%{{transform:none}}}}")
+        if uri:
+            css.append(f".s{i} .bg{{background-image:url({uri});animation:kb{i} {total}s {it} both}}"
+                       f"@keyframes kb{i}{{0%,{a:.3f}%{{transform:scale(1)}}{b:.3f}%,100%{{transform:scale(1.1)}}}}"
+                       f".s{i} .ov{{background:linear-gradient(180deg,rgba({grad},0) 30%,rgba({grad},.85) 100%)}}")
         text = html.escape(str(s.get("text") or ""))
         sub = html.escape(str(s.get("subtext") or ""))
-        if style == "split":
-            divs.append(f'<div class="sc s{i} split"><div class="half ac"><div class="g big">{glyph}</div></div>'
-                        f'<div class="half"><div class="txt"><div class="t">{text}</div><div class="u">{sub}</div></div></div></div>')
-        else:
-            divs.append(f'<div class="sc s{i}"><div class="bar ac"></div>{"<div class=g>" + glyph + "</div>" if glyph else ""}'
-                        f'<div class="txt"><div class="t">{text}</div><div class="u">{sub}</div></div>'
-                        f'<div class="pn">{html.escape(product_name)}</div></div>')
+        divs.append(f'<div class="sc s{i}">{"<div class=bg></div><div class=ov></div>" if uri else ""}<div class="bar ac"></div>'
+                    f'<div class="txt"><div class="t">{text}</div><div class="u">{sub}</div></div>'
+                    f'<div class="pn">{html.escape(product_name)}</div></div>')
     return f"""<!doctype html><html><head><meta charset="utf-8"><title>{html.escape(spec.get('title') or 'Ghost Agency')}</title>
 <style>
-html,body{{margin:0;background:#000;width:720px;height:720px;overflow:hidden;font-family:"Space Grotesk","Helvetica Neue",Helvetica,Arial,system-ui,sans-serif}}
-.sc{{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:56px;box-sizing:border-box}}
-.bar{{position:absolute;left:56px;top:56px;width:72px;height:10px}}
-.g{{position:absolute;right:56px;top:44px;font-size:120px;line-height:1}}
-.t{{font-size:72px;font-weight:700;line-height:.98;letter-spacing:-.03em;word-wrap:break-word}}
-.u{{font-size:26px;margin-top:18px;opacity:.85;line-height:1.3}}
-.pn{{position:absolute;left:56px;bottom:22px;font-size:16px;opacity:.55}}
-.split{{flex-direction:row;padding:0}}.split .half{{flex:1;display:flex;align-items:center;justify-content:center;padding:48px;box-sizing:border-box}}
-.split .big{{position:static;font-size:200px}}.split .txt .t{{font-size:60px}}
+html,body{{margin:0;background:#000;width:720px;height:720px;overflow:hidden;font-family:"Helvetica Neue",Helvetica,Arial,system-ui,sans-serif}}
+.sc{{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:56px;box-sizing:border-box;overflow:hidden}}
+.bg{{position:absolute;inset:0;background-size:cover;background-position:center;transform-origin:center}}
+.ov{{position:absolute;inset:0}}
+.bar{{position:absolute;left:56px;top:56px;width:64px;height:8px}}
+.txt{{position:relative}}
+.t{{font-size:64px;font-weight:700;line-height:1;letter-spacing:-.02em;word-wrap:break-word;text-shadow:0 2px 24px rgba(0,0,0,.25)}}
+.u{{font-size:24px;margin-top:16px;opacity:.9;line-height:1.3}}
+.pn{{position:absolute;left:56px;top:78px;font-size:14px;letter-spacing:4px;text-transform:uppercase;opacity:.8}}
 {''.join(css)}
 </style></head><body>{''.join(divs)}</body></html>"""
 
@@ -492,3 +542,120 @@ def record_motion_video(html_path: str, seconds: float, out_path: str) -> str:
     shutil.move(src, out_path)
     shutil.rmtree(tmp, ignore_errors=True)
     return out_path
+
+
+# ------------------------------------------------------------------ real photography
+
+PHOTO_DIR = Path(__file__).parent / "media" / "photos"
+
+
+def _photo_cache_key(query: str) -> str:
+    return hashlib.sha1(query.strip().lower().encode()).hexdigest()[:16]
+
+
+def _pexels_search(query: str, key: str) -> dict | None:
+    r = httpx.get("https://api.pexels.com/v1/search", params={"query": query, "per_page": 6, "orientation": "square", "size": "large"},
+                  headers={"Authorization": key}, timeout=15)
+    r.raise_for_status()
+    photos = r.json().get("photos") or []
+    if not photos:
+        r = httpx.get("https://api.pexels.com/v1/search", params={"query": query, "per_page": 6}, headers={"Authorization": key}, timeout=15)
+        r.raise_for_status()
+        photos = r.json().get("photos") or []
+    if not photos:
+        return None
+    p = photos[0]
+    return {"url": p["src"].get("large2x") or p["src"]["large"], "credit": f"{p.get('photographer', 'Pexels')} / Pexels",
+            "source_url": p.get("url", ""), "provider": "pexels"}
+
+
+def _wikimedia_search(query: str) -> dict | None:
+    for attempt in range(3):
+        r = _wikimedia_get(query)
+        if r.status_code != 429:
+            break
+        time.sleep(2.5 * (attempt + 1))  # Commons rate-limits bursts; back off and retry
+    r.raise_for_status()
+    return _wikimedia_pick(query, r)
+
+
+def _wikimedia_get(query: str):
+    return httpx.get("https://commons.wikimedia.org/w/api.php",
+                  params={"action": "query", "generator": "search", "gsrsearch": f"{query} filemime:image/jpeg", "gsrnamespace": 6,
+                          "gsrlimit": 8, "prop": "imageinfo", "iiprop": "url|extmetadata|size", "iiurlwidth": 1400, "format": "json"},
+                  headers={"User-Agent": "GhostAgency/1.0 (hackathon demo)"}, timeout=20)
+
+
+def _wikimedia_pick(query: str, r) -> dict | None:
+    pages = list((r.json().get("query") or {}).get("pages", {}).values())
+    pages = [p for p in pages if p.get("imageinfo") and (p["imageinfo"][0].get("width") or 0) >= 1000]
+    if not pages:
+        return None
+    words = [w for w in query.lower().split() if len(w) > 2]
+
+    def score(pg):
+        info = pg["imageinfo"][0]
+        meta = info.get("extmetadata") or {}
+        text = (pg.get("title", "") + " " + re.sub(r"<[^>]+>", "", (meta.get("ImageDescription") or {}).get("value", ""))
+                + " " + (meta.get("Categories") or {}).get("value", "")).lower()
+        hits = sum(1 for w in words if w in text)
+        aspect = info.get("width", 1) / max(1, info.get("height", 1))
+        return (hits, -abs(aspect - 1.0), info.get("width", 0))  # relevance, then squareness, then size
+    pages.sort(key=score, reverse=True)
+    if words and score(pages[0])[0] == 0 and len(words) > 1:
+        return None  # nothing mentions the subject; let the caller relax the query
+    p = pages[0]["imageinfo"][0]
+    meta = p.get("extmetadata") or {}
+    artist = re.sub(r"<[^>]+>", "", (meta.get("Artist") or {}).get("value", "")).strip()[:40]
+    return {"url": p.get("thumburl") or p["url"], "credit": f"{artist or 'Wikimedia Commons'} / Wikimedia",
+            "source_url": p.get("descriptionurl", ""), "provider": "wikimedia"}
+
+
+def find_photo(query: str) -> dict | None:
+    """Real photo for a query -> {path, credit, source_url, provider}; cached on disk. None if nothing works."""
+    query = " ".join((query or "").split())[:80]
+    if not query or env_flag("NO_PHOTOS"):
+        return None
+    PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+    key = _photo_cache_key(query)
+    meta_path = PHOTO_DIR / f"{key}.json"
+    if meta_path.exists():
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        if Path(meta["path"]).exists():
+            return meta
+    providers = []
+    pexels_key = os.environ.get("PEXELS_API_KEY", "").strip()
+    if pexels_key:
+        providers.append(lambda: _pexels_search(query, pexels_key))
+    words = query.split()
+    for n in range(len(words), max(0, min(2, len(words)) - 1), -1):  # keyless fallback: relax to at least 2 words
+        providers.append(lambda q=" ".join(words[:n]): _wikimedia_search(q))
+    if len(words) > 1:
+        providers.append(lambda q=words[0]: _wikimedia_search(q))  # last resort: the subject alone
+    for prov in providers:
+        try:
+            hit = prov()
+            if not hit:
+                continue
+            img = httpx.get(hit["url"], timeout=25, follow_redirects=True,
+                            headers={"User-Agent": "GhostAgency/1.0 (hackathon demo)"})
+            img.raise_for_status()
+            if not img.headers.get("content-type", "").startswith("image/"):
+                continue
+            ext = ".png" if "png" in img.headers.get("content-type", "") else ".jpg"
+            path = PHOTO_DIR / f"{key}{ext}"
+            path.write_bytes(img.content)
+            meta = {"path": str(path), "credit": hit["credit"], "source_url": hit["source_url"],
+                    "provider": hit["provider"], "query": query}
+            meta_path.write_text(json.dumps(meta), encoding="utf-8")
+            return meta
+        except Exception as e:  # next provider
+            log.warning("photo provider failed for %r: %s", query, e)
+    return None
+
+
+def photo_data_uri(path: str) -> str:
+    import base64
+    p = Path(path)
+    mime = "image/png" if p.suffix == ".png" else "image/jpeg"
+    return f"data:{mime};base64," + base64.b64encode(p.read_bytes()).decode("ascii")

@@ -50,7 +50,7 @@
       <div class="post">
         <h2>{{ p.headline }}</h2>
         <p>{{ p.body }}</p>
-        {% if p.cta %}<p class="cta">{{ p.cta }} →</p>{% endif %}
+        {% if p.cta %}<p class="cta">{{ p.cta | replace('→', '') | trim }} →</p>{% endif %}
         {% if p.hashtags %}<p class="tags">{{ p.hashtags | join(' ') }}</p>{% endif %}
       </div>
       {% if p.metrics %}

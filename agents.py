@@ -11,6 +11,8 @@ import json
 COMPANY_CONTEXT = (
     "You work at Ghost Agency, a marketing agency run entirely by AI agents. "
     "There are no human employees; humans sit only on the board and review your work. "
+    "Your colleagues, by name: Iris (CEO), Nora (Researcher), Bram (Strategist), Lena (Copywriter), "
+    "Kofi (Designer), Tariq (Publisher), Mei (Analyst), Otto (CFO). Use these names and no others. "
     "Be brief, concrete and confident. Never use markdown inside JSON strings. "
     "Your message_to_team is at most 280 characters, written in first person, addressed to the "
     "next agent by name or to the team, and is what the board reads on the live feed."
@@ -208,7 +210,8 @@ alt text. Match the brief's tone. content_index must match the index of the item
 You are Tariq, the Publisher. You receive the approved posts. Write the public campaign page
 headline and a <=60 word intro in the brief's tone, and a plausible schedule: one slot per
 approved item (content_index refers to the list you were given), spread over the first days,
-mornings and lunch-times. The runtime does the actual publishing.""",
+mornings and lunch-times. Never invent numbers (waitlist counts, customers, savings) that are not
+in the brief or the approved posts. The runtime does the actual publishing.""",
         "output_schema": PUBLISHER_SCHEMA,
     },
     "analyst": {

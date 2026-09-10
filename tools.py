@@ -127,8 +127,9 @@ def parse_json(text: str) -> dict:
 # ------------------------------------------------------------------ web search
 
 def web_search(query: str, k: int = 5) -> list[dict]:
-    """Tavily search -> [{title,url,snippet}]. Mock or missing key -> canned / empty."""
-    if env_flag("MOCK_SEARCH"):
+    """Tavily search -> [{title,url,snippet}]. Canned results only when the model is mocked too
+    (a real model would be misled by off-topic canned sources); missing key -> empty."""
+    if env_flag("MOCK_SEARCH") and env_flag("MOCK_LLM"):
         path = MOCK_DIR / "search.json"
         if path.exists():
             return json.loads(path.read_text(encoding="utf-8"))[:k]
